@@ -25,7 +25,63 @@ function nextRandom(game:GameState):number{
  game.rngSeed=(game.rngSeed*1664525+1013904223)>>>0;
  return game.rngSeed/4294967296;
 }
-function persist(){save.bestScore=Math.max(save.bestScore,state.mode==='classic'?state.score:0);saveData(save);}
+function persist(){
+ save.bestScore=Math.max(save.bestScore,state.mode==='classic'?state.score:0);
+ saveData(save);
+ if(state.over){clearSession();hasSavedRound=false;}
+ else {saveSession({...state,selected:null,paused:false});hasSavedRound=true;}
+}
+function restoreGameSession(value:unknown):GameState|null{
+ if(!value||typeof value!=='object')return null;
+ const candidate=value as Partial<GameState>;
+ if(!(['classic','level','daily'] as const).includes(candidate.mode as 'classic'|'level'|'daily'))return null;
+ if(candidate.over===true||typeof candidate.level!=='number'||!Number.isInteger(candidate.level)||candidate.level<1||candidate.level>30)return null;
+ if(candidate.mode==='daily'&&candidate.sessionDate!==todayKey())return null;
+ const board=candidate.board;
+ if(!Array.isArray(board)||board.length!==SIZE)return null;
+ if(board.some(row=>!Array.isArray(row)||row.length!==SIZE||row.some(cell=>cell!==null&&(typeof cell!=='number'||!Number.isInteger(cell)||cell<0||cell>=PALETTE.length))))return null;
+ const tray=candidate.tray;
+ if(!Array.isArray(tray)||tray.length!==3)return null;
+ const pieceIds=new Set<string>();
+ const validPieces=tray.every(piece=>{
+  if(!piece||typeof piece!=='object')return false;
+  const p=piece as Piece;
+  if(typeof p.id!=='string'||pieceIds.has(p.id)||typeof p.shapeId!=='string'||!SHAPE_LIBRARY.some(shape=>shape.id===p.shapeId))return false;
+  pieceIds.add(p.id);
+  if(typeof p.color!=='number'||!Number.isInteger(p.color)||p.color<0||p.color>=PALETTE.length||typeof p.used!=='boolean'||!Array.isArray(p.cells)||!p.cells.length)return false;
+  const seen=new Set<string>();
+  return p.cells.every(point=>{
+   if(!Array.isArray(point)||point.length!==2||typeof point[0]!=='number'||typeof point[1]!=='number'||!Number.isInteger(point[0])||!Number.isInteger(point[1])||point[0]<0||point[1]<0||point[0]>=SIZE||point[1]>=SIZE)return false;
+   const key=point[0]+','+point[1];if(seen.has(key))return false;seen.add(key);return true;
+  });
+ });
+ if(!validPieces)return null;
+ const numericFields:unknown[]=[candidate.rngSeed,candidate.score,candidate.combo,candidate.serial,candidate.moves,candidate.lines,candidate.multi,candidate.bloom];
+ if(numericFields.some(value=>typeof value!=='number'||!Number.isSafeInteger(value)||value<0))return null;
+ if(Number(candidate.bloom)>100)return null;
+ if(candidate.sessionDate!==null&&typeof candidate.sessionDate!=='string')return null;
+ const restored:GameState={
+  sessionDate:candidate.sessionDate??null,
+  board:(board as Board).map(row=>[...row]),
+  tray:(tray as Piece[]).map(piece=>({...piece,cells:piece.cells.map(([x,y])=>[x,y] as Point)})),
+  rngSeed:Number(candidate.rngSeed)>>>0,
+  score:Number(candidate.score),
+  combo:Number(candidate.combo),
+  bloom:Number(candidate.bloom),
+  serial:Number(candidate.serial),
+  selected:null,
+  mode:candidate.mode as GameState['mode'],
+  level:Number(candidate.level),
+  moves:Number(candidate.moves),
+  lines:Number(candidate.lines),
+  multi:Number(candidate.multi),
+  over:false,
+  paused:false
+ };
+ return hasAnyValidMove(restored.board,restored.tray)||restored.bloom>=100?restored:null;
+}
+const recoveredRound=restoreGameSession(loadSession());
+if(recoveredRound){state=recoveredRound;hasSavedRound=true;}
 function toast(message:string){const el=document.querySelector('#toast');if(el){el.textContent=message;el.classList.add('show');window.clearTimeout(toastTimer);toastTimer=window.setTimeout(()=>el.classList.remove('show'),1700);}}
 function nav(next:Screen){screen=next;render();}
 function button(label:string,action:string,cls='btn'):string{return `<button class="${cls}" data-action="${action}">${label}</button>`;}
