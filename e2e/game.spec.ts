@@ -28,6 +28,24 @@ test('a real piece can be selected and placed on the 8×8 board', async ({ page 
 });
 
 
+
+test('undo rolls the board and saved score back together', async ({ page }) => {
+  await page.getByRole('button', { name: /PLAY CLASSIC/i }).click();
+  const piece = page.locator('.piece-slot:not(.used)').first();
+  await piece.click();
+  await page.locator('.cell[data-x="0"][data-y="0"]').click();
+  await expect(page.locator('#board .filled')).not.toHaveCount(0);
+  await expect(page.locator('#score')).not.toHaveText('0');
+
+  await page.locator('button[data-action="undo"]').click();
+  await expect(page.locator('#board .filled')).toHaveCount(0);
+  await expect(page.locator('#score')).toHaveText('0');
+  await page.locator('button[data-action="back"]').click();
+  await page.getByRole('button', { name: /STATS/i }).click();
+  await expect(page.getByText('TOTAL POINTS')).toBeVisible();
+  await expect(page.locator('.stat-grid')).toContainText('0');
+});
+
 test('drag placement preserves the shape offset and lands on the board', async ({ page }) => {
   await page.getByRole('button', { name: /PLAY CLASSIC/i }).click();
   const piece = page.locator('.piece-slot:not(.used)').first();
