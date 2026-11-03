@@ -60,3 +60,28 @@ export function saveData(data:SaveData,storage?:Storage):boolean{
 export function todayKey(date=new Date()):string{
  return [date.getFullYear(),String(date.getMonth()+1).padStart(2,'0'),String(date.getDate()).padStart(2,'0')].join('-');
 }
+
+const SESSION_KEY='block-bloom-session-v1';
+export function loadSession(storage?:Storage):unknown|null{
+ try{
+  const target=storage??(typeof localStorage!=='undefined'?localStorage:undefined);
+  if(!target)return null;
+  const raw=target.getItem(SESSION_KEY);if(!raw)return null;
+  const value=JSON.parse(raw) as {version?:number;session?:unknown};
+  return value&&value.version===1&&'session' in value?value.session:null;
+ }catch{return null;}
+}
+export function saveSession<T>(session:T,storage?:Storage):boolean{
+ try{
+  const target=storage??(typeof localStorage!=='undefined'?localStorage:undefined);
+  if(!target)return false;
+  target.setItem(SESSION_KEY,JSON.stringify({version:1,session}));return true;
+ }catch{return false;}
+}
+export function clearSession(storage?:Storage):boolean{
+ try{
+  const target=storage??(typeof localStorage!=='undefined'?localStorage:undefined);
+  if(!target)return false;
+  target.removeItem(SESSION_KEY);return true;
+ }catch{return false;}
+}
