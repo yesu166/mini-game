@@ -11,6 +11,8 @@ const save:SaveData=loadSave();
 let screen:Screen='menu',state:GameState=createGame('classic',1),toastTimer=0,history:GameState[]=[],lastActionAt=0,burstMode=false;
 let drag:{pieceId:string;startX:number;startY:number;pointerId:number;grabX:number;grabY:number;moved:boolean}|null=null;
 let pointerListenersReady=false;
+const clearFx=new Set<string>();
+let clearFxToken=0;
 
 function createGame(mode:GameState['mode'],level:number):GameState{
  const seed=mode==='daily'?hashSeed('block-bloom:'+todayKey()):mode==='level'?hashSeed('block-bloom-level:'+level):((Math.random()*0xffffffff)>>>0);
@@ -42,7 +44,7 @@ function pieceMarkup(piece:Piece):string{
 }
 function renderGame(){
  const level=state.mode==='level'?LEVELS[state.level-1]:null;
- root.innerHTML=`<main class="shell game-shell"><header class="game-head"><button class="icon-btn" data-action="back">←</button><div><div class="eyebrow">${state.mode==='classic'?'CLASSIC MODE':state.mode==='daily'?'DAILY BLOOM':`LEVEL ${state.level} / 30`}</div><div class="score-number" id="score">${state.score.toLocaleString()}</div><small>SCORE ${level?`· TARGET ${level.target}`:''}</small></div><button class="icon-btn" data-action="pause">Ⅱ</button></header><div class="meta-row"><div class="meta-pill">✦ <b>${state.combo}</b> COMBO</div><div class="meta-pill bloom-pill"><span>✿ BLOOM</span><div class="meter"><i id="bloom-meter" style="width:${state.bloom}%"></i></div><b>${state.bloom}%</b></div><button class="burst-btn" data-action="burst" ${state.bloom<100?'disabled':''}>✺ BURST</button></div><section class="board-wrap"><div class="board" id="board" aria-label="Eight by eight puzzle board">${state.board.flatMap((row,y)=>row.map((cell,x)=>`<div class="cell ${cell===null?'':'filled'}" data-x="${x}" data-y="${y}" ${cell===null?'':`style="--block:${PALETTE[cell]}"`}></div>`)).join('')}</div></section><div class="helper">${state.paused?'Game paused. Resume when ready.':level?level.hint:'Drag a shape onto the board. Tap a shape then tap the board to place it.'}</div><div class="tray" id="tray">${state.tray.map(p=>`<button class="piece-slot ${p.used?'used':''} ${state.selected===p.id?'selected':''}" data-piece="${p.id}" ${p.used?'disabled':''} aria-label="Select shape"><span class="mini-piece">${pieceMarkup(p)}</span><small>${p.cells.length}</small></button>`).join('')}</div><div class="game-actions">${button('↶ UNDO','undo','btn soft')}${button('↻ ROTATE','rotate','btn soft')}${button('💡 HINT','hint','btn soft')}${button('↻ RESET','restart','btn soft')}</div><div id="toast" class="toast"></div></main>`;
+ root.innerHTML=`<main class="shell game-shell"><header class="game-head"><button class="icon-btn" data-action="back">←</button><div><div class="eyebrow">${state.mode==='classic'?'CLASSIC MODE':state.mode==='daily'?'DAILY BLOOM':`LEVEL ${state.level} / 30`}</div><div class="score-number" id="score">${state.score.toLocaleString()}</div><small>SCORE ${level?`· TARGET ${level.target}`:''}</small></div><button class="icon-btn" data-action="pause">Ⅱ</button></header><div class="meta-row"><div class="meta-pill">✦ <b>${state.combo}</b> COMBO</div><div class="meta-pill bloom-pill"><span>✿ BLOOM</span><div class="meter"><i id="bloom-meter" style="width:${state.bloom}%"></i></div><b>${state.bloom}%</b></div><button class="burst-btn" data-action="burst" ${state.bloom<100?'disabled':''}>✺ BURST</button></div><section class="board-wrap"><div class="board" id="board" aria-label="Eight by eight puzzle board">${state.board.flatMap((row,y)=>row.map((cell,x)=>`<div class="cell ${cell===null?'':'filled'} ${clearFx.has(x+','+y)?'clear-fx':''}" data-x="${x}" data-y="${y}" ${cell===null?'':`style="--block:${PALETTE[cell]}"`}></div>`)).join('')}</div></section><div class="helper">${state.paused?'Game paused. Resume when ready.':level?level.hint:'Drag a shape onto the board. Tap a shape then tap the board to place it.'}</div><div class="tray" id="tray">${state.tray.map(p=>`<button class="piece-slot ${p.used?'used':''} ${state.selected===p.id?'selected':''}" data-piece="${p.id}" ${p.used?'disabled':''} aria-label="Select shape"><span class="mini-piece">${pieceMarkup(p)}</span><small>${p.cells.length}</small></button>`).join('')}</div><div class="game-actions">${button('↶ UNDO','undo','btn soft')}${button('↻ ROTATE','rotate','btn soft')}${button('💡 HINT','hint','btn soft')}${button('↻ RESET','restart','btn soft')}</div><div id="toast" class="toast"></div></main>`;
  if(state.paused){
   const layer=document.createElement('div');layer.className='modal-backdrop pause-backdrop';
   layer.innerHTML='<section class="modal pause-modal"><div class="modal-flower">Ⅱ</div><div class="eyebrow">TAKE A BREATH</div><h2>Garden paused</h2><p>Your board is safe. Take a moment, then come back for the next move.</p><button class="btn primary" data-pause="resume">RESUME GAME</button><button class="btn soft" data-pause="restart">RESTART ROUND</button><button class="btn soft" data-pause="home">GARDEN HOME</button></section>';
@@ -54,6 +56,33 @@ function renderGame(){
  bindGameEvents();
 }
 function takeSnapshot(){history.push({...state,board:state.board.map(r=>[...r]),tray:state.tray.map(p=>({...p,cells:p.cells.map(c=>[...c] as Point)}))});if(history.length>25)history.shift();}
+function applyClearFx(rows:number[],columns:number[]){
+ clearFx.clear();
+ for(const y of rows)for(let x=0;x<SIZE;x++)clearFx.add(x+','+y);
+ for(const x of columns)for(let y=0;y<SIZE;y++)clearFx.add(x+','+y);
+ const token=++clearFxToken;
+ window.setTimeout(()=>{
+  if(token!==clearFxToken)return;
+  document.querySelectorAll('.cell.clear-fx').forEach(cell=>cell.classList.remove('clear-fx'));
+  clearFx.clear();
+ },520);
+}
+function showScoreFx(points:number,lines:number,kind:'score'|'burst'='score'){
+ const wrap=document.querySelector<HTMLElement>('.board-wrap');if(!wrap)return;
+ const popup=document.createElement('div');
+ popup.className='score-pop'+(kind==='burst'?' burst-pop':lines>1?' combo-pop':'');
+ popup.textContent=(kind==='burst'?'✦ BLOOM +':'+')+points.toLocaleString()+(lines>1?'  /  '+lines+' LINES':lines===1?'  /  LINE':'');
+ wrap.append(popup);window.setTimeout(()=>popup.remove(),900);
+ if(lines===0&&kind!=='burst')return;
+ for(let i=0;i<14;i++){
+  const particle=document.createElement('i');particle.className='bloom-particle';
+  const angle=(Math.PI*2*i)/14+(Math.random()-.5)*.24,distance=38+Math.random()*54;
+  particle.style.setProperty('--tx',Math.cos(angle)*distance+'px');
+  particle.style.setProperty('--ty',Math.sin(angle)*distance+'px');
+  particle.style.setProperty('--scale',(0.55+Math.random()*.9).toString());
+  wrap.append(particle);window.setTimeout(()=>particle.remove(),820);
+ }
+}
 function cellAt(clientX:number,clientY:number):{x:number;y:number}|null{
  const cells=[...document.querySelectorAll<HTMLElement>('#board .cell')];
  for(const el of cells){const r=el.getBoundingClientRect();if(clientX>=r.left&&clientX<=r.right&&clientY>=r.top&&clientY<=r.bottom)return {x:Number(el.dataset.x),y:Number(el.dataset.y)};}
@@ -144,7 +173,7 @@ function commit(piece:Piece,x:number,y:number){
  const now=Date.now();if(now-lastActionAt<70)return;lastActionAt=now;
  takeSnapshot();const result=applyPlacement(state.board,piece,x,y,state.combo,state.bloom);
  state.board=result.board;state.score+=result.score;state.combo=result.combo;state.bloom=result.bloom;state.lines+=result.lines;state.multi+=result.lines>=2?1:0;state.moves++;piece.used=true;state.selected=null;
- if(result.lines){audio.play(result.lines>1?'combo':'clear');if(navigator.vibrate&&save.vibration)navigator.vibrate(result.lines>1?[20,30,30]:15);}else audio.play('place');
+ if(result.lines){applyClearFx(result.rows,result.columns);audio.play(result.lines>1?'combo':'clear');if(navigator.vibrate&&save.vibration)navigator.vibrate(result.lines>1?[20,30,30]:15);}else audio.play('place');
  if(state.tray.every(p=>p.used)){state.serial++;state.tray=generatePieceSet(()=>nextRandom(state),state.serial);}
  save.bestScore=Math.max(save.bestScore,state.mode==='classic'?state.score:0);save.totalScore+=result.score;save.linesCleared+=result.lines;save.highestCombo=Math.max(save.highestCombo,state.combo);
  if(state.mode==='daily'&&state.score>=500&&save.dailyDate!==todayKey()){
@@ -158,7 +187,7 @@ function commit(piece:Piece,x:number,y:number){
   else if(state.moves>=level.moves)state.over=true;
  }
  if(!hasAnyValidMove(state.board,state.tray)&&state.bloom<100)state.over=true;
- persist();renderGame();if(state.over)showEnd();
+ persist();renderGame();showScoreFx(result.score,result.lines);if(state.over)showEnd();
 }
 function canFitAt(piece:Piece,x:number,y:number):boolean{return piece.cells.every(([dx,dy])=>x+dx<SIZE&&y+dy<SIZE&&x+dx>=0&&y+dy>=0&&state.board[y+dy]?.[x+dx]===null);}
 function activateBurstAt(x:number,y:number){
@@ -173,7 +202,7 @@ function activateBurstAt(x:number,y:number){
  if(!hasAnyValidMove(state.board,state.tray))state.over=true;
  persist();audio.play('bloom');
  if(navigator.vibrate&&save.vibration)navigator.vibrate([25,35,50]);
- renderGame();toast('Bloom Burst! +'+bonus+' ✿');if(state.over)showEnd();
+ renderGame();showScoreFx(bonus,0,'burst');toast('Bloom Burst! +'+bonus+' ✿');if(state.over)showEnd();
 }
 function showEnd(){
  const won=state.mode==='level'&&save.levelStars[state.level]>0,daily=state.mode==='daily'&&save.dailyDate===todayKey();
