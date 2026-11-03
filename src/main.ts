@@ -11,7 +11,7 @@ const root=document.querySelector<HTMLDivElement>('#root')!;
 const save:SaveData=loadSave();
 let screen:Screen='menu',state:GameState=createGame('classic',1),toastTimer=0,history:HistoryEntry[]=[],lastActionAt=0,burstMode=false,burstPreview:{x:number;y:number}|null=null;
 let drag:{pieceId:string;startX:number;startY:number;pointerId:number;grabX:number;grabY:number;moved:boolean}|null=null;
-let pointerListenersReady=false;
+let pointerListenersReady=false,audioUnlocked=false;
 const clearFx=new Set<string>();
 let clearFxToken=0;
 
@@ -32,7 +32,7 @@ function button(label:string,action:string,cls='btn'):string{return `<button cla
 function header(title:string,sub=''){return `<header class="topbar"><button class="icon-btn" data-action="back" aria-label="Back">←</button><div><div class="eyebrow">BLOCK BLOOM</div><h1>${title}</h1>${sub?`<p>${sub}</p>`:''}</div><button class="icon-btn" data-action="settings" aria-label="Settings">⚙</button></header>`;}
 function render(){
  if(screen==='menu'){root.innerHTML=`<main class="shell home"><div class="sunburst"></div><div class="brand-mark">✿</div><div class="eyebrow">A LITTLE PUZZLE GARDEN</div><h1 class="wordmark">BLOCK<br/><span>BLOOM</span></h1><p class="lede">Place with purpose. Clear with joy.</p><div class="home-score"><span>PERSONAL BEST</span><strong>${save.bestScore.toLocaleString()}</strong></div><div class="menu-actions">${button('▶ &nbsp; PLAY CLASSIC','classic','btn primary')}${button('✿ &nbsp; LEVEL JOURNEY','journey','btn')}${button('☀ &nbsp; DAILY BLOOM','daily','btn')}<div class="small-actions">${button('◷ STATS','stats','btn soft')}${button('⚙ SETTINGS','settings','btn soft')}${button('ⓘ PRIVACY','privacy','btn soft')}</div></div><div class="footer-note">A fresh board. A fresh chance to bloom.</div></main><div id="toast" class="toast"></div>`;return;}
- if(screen==='settings'){root.innerHTML=`<main class="shell page">${header('Settings','Make your garden feel like yours.') }<section class="panel settings-list"><div class="setting"><div><b>Sound effects</b><small>Little notes for every good move</small></div><input type="checkbox" data-setting="sound" ${save.sound?'checked':''}></div><div class="setting"><div><b>Background music</b><small>Music is not bundled in this build</small></div><input type="checkbox" data-setting="music" ${save.music?'checked':''}></div><div class="setting"><div><b>Vibration</b><small>Short feedback on supported devices</small></div><input type="checkbox" data-setting="vibration" ${save.vibration?'checked':''}></div></section><section class="panel"><h3>How to play</h3><p>Drag a piece onto the board. Fill an entire row or column to clear it. Clear several lines together for a bigger score. Bloom Burst clears the occupied cells inside a selected 3 × 3 area once the meter is full.</p></section>${button('BACK TO GARDEN','back','btn primary')}</main>`;return;}
+ if(screen==='settings'){root.innerHTML=`<main class="shell page">${header('Settings','Make your garden feel like yours.') }<section class="panel settings-list"><div class="setting"><div><b>Sound effects</b><small>Little notes for every good move</small></div><input type="checkbox" data-setting="sound" ${save.sound?'checked':''}></div><div class="setting"><div><b>Background music</b><small>Soft ambient synth, only when enabled</small></div><input type="checkbox" data-setting="music" ${save.music?'checked':''}></div><div class="setting"><div><b>Vibration</b><small>Short feedback on supported devices</small></div><input type="checkbox" data-setting="vibration" ${save.vibration?'checked':''}></div></section><section class="panel"><h3>How to play</h3><p>Drag a piece onto the board. Fill an entire row or column to clear it. Clear several lines together for a bigger score. Bloom Burst clears the occupied cells inside a selected 3 × 3 area once the meter is full.</p></section>${button('BACK TO GARDEN','back','btn primary')}</main>`;return;}
  if(screen==='stats'){root.innerHTML=`<main class="shell page">${header('Your garden','Every round makes you sharper.') }<div class="stat-grid"><div class="panel"><small>BEST SCORE</small><strong>${save.bestScore.toLocaleString()}</strong></div><div class="panel"><small>TOTAL POINTS</small><strong>${save.totalScore.toLocaleString()}</strong></div><div class="panel"><small>GAMES PLAYED</small><strong>${save.gamesPlayed}</strong></div><div class="panel"><small>LINES CLEARED</small><strong>${save.linesCleared}</strong></div><div class="panel"><small>BEST COMBO</small><strong>${save.highestCombo}×</strong></div><div class="panel"><small>DAILY STREAK</small><strong>${save.dailyStreak} ✦</strong></div></div>${button('BACK TO GARDEN','back','btn primary')}</main>`;return;}
  if(screen==='privacy'){root.innerHTML=`<main class="shell page">${header('Privacy','Simple by design.') }<section class="panel"><h3>Local game data</h3><p>BLOCK BLOOM stores your best score, game statistics, level stars, settings and daily challenge completion in this browser's local storage. No account or remote gameplay telemetry is enabled.</p><h3>Advertising</h3><p>No advertising SDK is enabled. Any future advertising integration must disclose the provider and obtain required consent before release.</p><h3>External resources</h3><p>The interface currently requests Google Fonts when online. The game engine itself does not need an internet connection.</p></section>${button('BACK','back','btn primary')}</main>`;return;}
  if(screen==='journey'){root.innerHTML=`<main class="shell page">${header('Level journey','Thirty tiny challenges. One growing garden.') }<div class="level-grid">${LEVELS.map(l=>{const unlocked=l.id<=save.levelUnlocked,stars=save.levelStars[l.id]||0,chapterHead=[1,11,21].includes(l.id)?`<div class="chapter-heading"><span>CHAPTER ${String(l.chapter).padStart(2,'0')}</span><b>${l.chapterName}</b></div>`:'';return chapterHead+`<button class="level-card ${unlocked?'':'locked'}" data-level="${l.id}" ${unlocked?'':'disabled'}><span>${String(l.id).padStart(2,'0')}</span><b>${l.name}</b><em>${l.objective.toUpperCase()} · ${l.target}</em><small>${unlocked?'★'.repeat(stars)+'☆'.repeat(3-stars):'🔒 LOCKED'}</small></button>`;}).join('')}</div>${button('BACK TO GARDEN','back','btn primary')}</main>`;return;}
@@ -53,6 +53,21 @@ function renderGame(){
   layer.querySelector('[data-pause="resume"]')?.addEventListener('click',()=>{state.paused=false;renderGame();});
   layer.querySelector('[data-pause="restart"]')?.addEventListener('click',()=>{state=createGame(state.mode,state.level);history=[];burstMode=false;burstPreview=null;renderGame();});
   layer.querySelector('[data-pause="home"]')?.addEventListener('click',()=>{state.paused=false;burstMode=false;nav('menu');});
+ }
+ const boardWrap=document.querySelector<HTMLElement>('.board-wrap');
+ if(boardWrap){
+  boardWrap.addEventListener('pointermove',event=>{
+   if(event.pointerType!=='mouse'||drag)return;
+   const rect=boardWrap.getBoundingClientRect();
+   const nx=(event.clientX-rect.left)/rect.width-.5;
+   const ny=(event.clientY-rect.top)/rect.height-.5;
+   boardWrap.style.setProperty('--tilt-x',(nx*2.1).toFixed(2)+'deg');
+   boardWrap.style.setProperty('--tilt-y',(-ny*2.1).toFixed(2)+'deg');
+  });
+  boardWrap.addEventListener('pointerleave',()=>{
+   boardWrap.style.setProperty('--tilt-x','0deg');
+   boardWrap.style.setProperty('--tilt-y','0deg');
+  });
  }
  bindGameEvents();
 }
@@ -251,6 +266,7 @@ root.addEventListener('change',e=>{
 });
 audio.setEnabled(save.sound);
 render();
+window.addEventListener('pointerdown',()=>{if(audioUnlocked)return;audioUnlocked=true;if(save.music)audio.setMusicEnabled(true);},{once:true,passive:true});
 window.addEventListener('keydown',e=>{
  if(screen!=='classic'||e.repeat||e.target instanceof HTMLInputElement||e.target instanceof HTMLTextAreaElement)return;
  if(e.key==='Escape'){e.preventDefault();state.paused=!state.paused;renderGame();}
