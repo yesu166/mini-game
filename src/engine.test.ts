@@ -77,7 +77,7 @@ describe('BLOCK BLOOM deterministic puzzle engine',()=>{
   const board=createBoard().map(row=>row.map(()=>0));
   board[0][0]=null;board[1][0]=null;board[2][0]=null;
   const horizontal:Piece={id:'line',shapeId:'line',cells:[[0,0],[1,0],[2,0]],color:1,used:false};
-  expect(getAvailableMoves(board,[horizontal])).toHaveLength(0);
+  expect(getAvailableMoves(board,[horizontal]).some(move=>move.turns===1)).toBe(true);
   expect(hasAnyValidMove(board,[horizontal])).toBe(true);
  });
 
