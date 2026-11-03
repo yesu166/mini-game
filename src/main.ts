@@ -1,17 +1,27 @@
-import { createBoard, generatePieceSet, applyPlacement, getAvailableMoves, hasAnyValidMove, PALETTE, SIZE, type Board, type Piece, type Point } from './engine';
+import { createBoard, generatePieceSet, applyPlacement, clearRegion3x3, getAvailableMoves, hasAnyValidMove, hashSeed, PALETTE, seededRandom, SIZE, type Board, type Piece, type Point } from './engine';
 import { loadSave, saveData, todayKey, type SaveData } from './storage';
 import { LEVELS, isLevelComplete, starsForLevel } from './levels';
 import { audio } from './audio';
 import './style.css';
 
 type Screen='menu'|'classic'|'journey'|'daily'|'settings'|'stats'|'privacy';
-interface GameState { board:Board; tray:Piece[]; score:number; combo:number; bloom:number; serial:number; selected:string|null; mode:'classic'|'level'|'daily'; level:number; moves:number; lines:number; multi:number; over:boolean; paused:boolean; }
+interface GameState { board:Board; tray:Piece[]; rngSeed:number; score:number; combo:number; bloom:number; serial:number; selected:string|null; mode:'classic'|'level'|'daily'; level:number; moves:number; lines:number; multi:number; over:boolean; paused:boolean; }
 const root=document.querySelector<HTMLDivElement>('#root')!;
 const save:SaveData=loadSave();
 let screen:Screen='menu',state:GameState=createGame('classic',1),toastTimer=0,history:GameState[]=[],lastActionAt=0,burstMode=false;
-let drag:{pieceId:string;startX:number;startY:number;pointerId:number}|null=null;
+let drag:{pieceId:string;startX:number;startY:number;pointerId:number;grabX:number;grabY:number;moved:boolean}|null=null;
+let pointerListenersReady=false;
 
-function createGame(mode:GameState['mode'],level:number):GameState{return {board:createBoard(),tray:generatePieceSet(Math.random,0),score:0,combo:0,bloom:0,serial:0,selected:null,mode,level,moves:0,lines:0,multi:0,over:false,paused:false};}
+function createGame(mode:GameState['mode'],level:number):GameState{
+ const seed=mode==='daily'?hashSeed('block-bloom:'+todayKey()):((Math.random()*0xffffffff)>>>0);
+ const game:GameState={board:createBoard(),tray:[],rngSeed:seed,score:0,combo:0,bloom:0,serial:0,selected:null,mode,level,moves:0,lines:0,multi:0,over:false,paused:false};
+ game.tray=generatePieceSet(()=>nextRandom(game),0);
+ return game;
+}
+function nextRandom(game:GameState):number{
+ game.rngSeed=(game.rngSeed*1664525+1013904223)>>>0;
+ return game.rngSeed/4294967296;
+}
 function persist(){save.bestScore=Math.max(save.bestScore,state.mode==='classic'?state.score:0);saveData(save);}
 function toast(message:string){const el=document.querySelector('#toast');if(el){el.textContent=message;el.classList.add('show');window.clearTimeout(toastTimer);toastTimer=window.setTimeout(()=>el.classList.remove('show'),1700);}}
 function nav(next:Screen){screen=next;render();}
@@ -28,7 +38,7 @@ function render(){
 }
 function pieceMarkup(piece:Piece):string{
  const maxX=Math.max(...piece.cells.map(c=>c[0]))+1,maxY=Math.max(...piece.cells.map(c=>c[1]))+1;
- return `<span class="mini-grid" style="--w:${maxX};--h:${maxY}">${piece.cells.map(([x,y])=>`<i style="grid-column:${x+1};grid-row:${y+1};--block:${PALETTE[piece.color]}"></i>`).join('')}</span>`;
+ return `<span class="mini-grid" style="--w:${maxX};--h:${maxY}">${piece.cells.map(([x,y])=>`<i data-px="${x}" data-py="${y}" style="grid-column:${x+1};grid-row:${y+1};--block:${PALETTE[piece.color]}"></i>`).join('')}</span>`;
 }
 function renderGame(){
  const level=state.mode==='level'?LEVELS[state.level-1]:null;
@@ -54,21 +64,72 @@ function bindGameEvents(){
   el.addEventListener('pointerdown',e=>{
    if(state.paused||state.over)return;
    const p=state.tray.find(v=>v.id===el.dataset.piece);if(!p||p.used)return;
-   const pe=e as PointerEvent;drag={pieceId:p.id,startX:pe.clientX,startY:pe.clientY,pointerId:pe.pointerId};state.selected=p.id;
-   el.classList.add('dragging');el.setPointerCapture?.(pe.pointerId);
-  });
-  el.addEventListener('click',()=>{if(drag)return;state.selected=el.dataset.piece!;document.querySelectorAll('.piece-slot').forEach(n=>n.classList.toggle('selected',(n as HTMLElement).dataset.piece===state.selected));});
-  el.addEventListener('pointerup',e=>{
-   const pe=e as PointerEvent;if(!drag||drag.pointerId!==pe.pointerId)return;
-   const p=state.tray.find(v=>v.id===drag!.pieceId);
-   if(p&&Math.abs(pe.clientX-drag.startX)+Math.abs(pe.clientY-drag.startY)>12){
-    const point=cellAt(pe.clientX,pe.clientY);
-    if(point){const minX=Math.min(...p.cells.map(c=>c[0])),minY=Math.min(...p.cells.map(c=>c[1]));commit(p,point.x-minX,point.y-minY);}
-    else toast('Drop your block on the board.');
-   }
-   drag=null;
+   const pe=e as PointerEvent;
+   const source=(pe.target as HTMLElement).closest<HTMLElement>('[data-px]');
+   drag={pieceId:p.id,startX:pe.clientX,startY:pe.clientY,pointerId:pe.pointerId,grabX:Number(source?.dataset.px??0),grabY:Number(source?.dataset.py??0),moved:false};
+   state.selected=p.id;
+   document.querySelectorAll('.piece-slot').forEach(n=>n.classList.toggle('selected',(n as HTMLElement).dataset.piece===p.id));
+   el.classList.add('dragging');
+   pe.preventDefault();
   });
  });
+ if(!pointerListenersReady){
+  window.addEventListener('pointermove',handlePointerMove,{passive:true});
+  window.addEventListener('pointerup',handlePointerUp);
+  window.addEventListener('pointercancel',handlePointerCancel);
+  pointerListenersReady=true;
+ }
+}
+function clearBoardPreview(){
+ document.querySelectorAll('.cell.preview-valid,.cell.preview-invalid,.cell.burst-target').forEach(el=>el.classList.remove('preview-valid','preview-invalid','burst-target'));
+}
+function updateBoardPreview(clientX:number,clientY:number){
+ clearBoardPreview();
+ const point=cellAt(clientX,clientY);if(!point)return;
+ if(burstMode){
+  for(let dy=0;dy<3;dy++)for(let dx=0;dx<3;dx++){
+   const cell=document.querySelector<HTMLElement>('.cell[data-x="'+(point.x+dx)+'"][data-y="'+(point.y+dy)+'"]');
+   if(cell&&point.x+2<SIZE&&point.y+2<SIZE)cell.classList.add('burst-target');
+  }
+  return;
+ }
+ if(!drag)return;
+ const piece=state.tray.find(p=>p.id===drag!.pieceId);if(!piece)return;
+ const originX=point.x-drag.grabX,originY=point.y-drag.grabY;
+ const valid=canFitAt(piece,originX,originY);
+ for(const [dx,dy] of piece.cells){
+  const cell=document.querySelector<HTMLElement>('.cell[data-x="'+(originX+dx)+'"][data-y="'+(originY+dy)+'"]');
+  if(cell)cell.classList.add(valid?'preview-valid':'preview-invalid');
+ }
+}
+function handlePointerMove(e:PointerEvent){
+ if(!drag||drag.pointerId!==e.pointerId)return;
+ if(!drag.moved&&Math.abs(e.clientX-drag.startX)+Math.abs(e.clientY-drag.startY)>7){
+  drag.moved=true;
+  document.querySelector('[data-piece="'+drag.pieceId+'"]')?.classList.add('dragging');
+ }
+ if(drag.moved)updateBoardPreview(e.clientX,e.clientY);
+}
+function handlePointerUp(e:PointerEvent){
+ if(!drag||drag.pointerId!==e.pointerId)return;
+ const active=drag;drag=null;
+ document.querySelector('[data-piece="'+active.pieceId+'"]')?.classList.remove('dragging');
+ clearBoardPreview();
+ if(active.moved){
+  const point=cellAt(e.clientX,e.clientY);
+  if(point){
+   const piece=state.tray.find(p=>p.id===active.pieceId);
+   if(piece)commit(piece,point.x-active.grabX,point.y-active.grabY);
+  }else toast('Drop your piece on the board.');
+ }else{
+  state.selected=active.pieceId;
+  document.querySelectorAll('.piece-slot').forEach(n=>n.classList.toggle('selected',(n as HTMLElement).dataset.piece===state.selected));
+ }
+}
+function handlePointerCancel(e:PointerEvent){
+ if(!drag||drag.pointerId!==e.pointerId)return;
+ document.querySelector('[data-piece="'+drag.pieceId+'"]')?.classList.remove('dragging');
+ drag=null;clearBoardPreview();
 }
 function commit(piece:Piece,x:number,y:number){
  if(state.paused||state.over||piece.used||!canFitAt(piece,x,y)){toast('That spot does not fit.');return;}
@@ -76,7 +137,7 @@ function commit(piece:Piece,x:number,y:number){
  takeSnapshot();const result=applyPlacement(state.board,piece,x,y,state.combo,state.bloom);
  state.board=result.board;state.score+=result.score;state.combo=result.combo;state.bloom=result.bloom;state.lines+=result.lines;state.multi+=result.lines>=2?1:0;state.moves++;piece.used=true;state.selected=null;
  if(result.lines){audio.play(result.lines>1?'combo':'clear');if(navigator.vibrate&&save.vibration)navigator.vibrate(result.lines>1?[20,30,30]:15);}else audio.play('place');
- if(state.tray.every(p=>p.used)){state.serial++;state.tray=generatePieceSet(Math.random,state.serial);}
+ if(state.tray.every(p=>p.used)){state.serial++;state.tray=generatePieceSet(()=>nextRandom(state),state.serial);}
  save.bestScore=Math.max(save.bestScore,state.mode==='classic'?state.score:0);save.totalScore+=result.score;save.linesCleared+=result.lines;save.highestCombo=Math.max(save.highestCombo,state.combo);
  if(state.mode==='daily'&&state.score>=500&&save.dailyDate!==todayKey()){save.dailyDate=todayKey();save.dailyStreak++;toast('Daily bloom complete! ✿');}
  if(state.mode==='level'){
@@ -91,12 +152,13 @@ function canFitAt(piece:Piece,x:number,y:number):boolean{return piece.cells.ever
 function activateBurstAt(x:number,y:number){
  if(state.bloom<100||!burstMode){toast('Bloom Burst is not ready.');return;}
  if(x+3>SIZE||y+3>SIZE){toast('Choose a 3 × 3 area fully on the board.');return;}
- const cells:Array<[number,number]>=[];
- for(let yy=y;yy<y+3;yy++)for(let xx=x;xx<x+3;xx++)if(state.board[yy][xx]!==null)cells.push([xx,yy]);
- if(!cells.length){toast('Choose an area with blocks inside.');return;}
- takeSnapshot();for(const [xx,yy] of cells)state.board[yy][xx]=null;
- const bonus=cells.length*15;state.score+=bonus;state.bloom=0;state.combo=0;burstMode=false;state.moves++;
- save.totalScore+=bonus;save.bestScore=Math.max(save.bestScore,state.mode==='classic'?state.score:0);persist();audio.play('bloom');if(navigator.vibrate&&save.vibration)navigator.vibrate([25,35,50]);renderGame();toast(`Bloom Burst! +${bonus} ✿`);
+ const result=clearRegion3x3(state.board,x,y);
+ if(!result.cleared){toast('Choose an area with blocks inside.');return;}
+ takeSnapshot();state.board=result.board;
+ const bonus=result.cleared*15;state.score+=bonus;state.bloom=0;state.combo=0;burstMode=false;state.moves++;
+ save.totalScore+=bonus;save.bestScore=Math.max(save.bestScore,state.mode==='classic'?state.score:0);persist();audio.play('bloom');
+ if(navigator.vibrate&&save.vibration)navigator.vibrate([25,35,50]);
+ renderGame();toast('Bloom Burst! +'+bonus+' ✿');
 }
 function showEnd(){
  const won=state.mode==='level'&&save.levelStars[state.level]>0,daily=state.mode==='daily'&&save.dailyDate===todayKey();
