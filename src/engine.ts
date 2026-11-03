@@ -95,7 +95,7 @@ export function generatePieceSet(random:()=>number=Math.random,serial=0):Piece[]
   return Array.from({length:3},(_,index)=>{
     let roll=Math.min(0.999999999,Math.max(0,random()))*total,shape=SHAPES[0];
     for(const candidate of SHAPES){roll-=candidate.weight;if(roll<0){shape=candidate;break;}}
-    return {id:'piece-'+serial+'-'+index,shapeId:shape.id,cells:shape.cells.map(([x,y])=>[x,y]),color:Math.floor(Math.min(.999999,Math.max(0,random()))*PALETTE.length),used:false};
+    return {id:'piece-'+serial+'-'+index,shapeId:shape.id,cells:shape.cells.map(([x,y])=>[x,y] as Point),color:Math.floor(Math.min(.999999,Math.max(0,random()))*PALETTE.length),used:false};
   });
 }
 
