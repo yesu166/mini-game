@@ -9,6 +9,7 @@
 - Tap placement, drag placement with pointer offset, valid/invalid board previews, rotation, hint, undo, pause, restart and game-over flow.
 - Classic mode, 30-level journey definitions and date-seeded daily challenge.
 - Versioned local save validation with corrupted-data and unavailable-storage fallbacks.
+- Versioned active-round snapshots and Continue Round recovery, including stale daily-session rejection.
 - Synthesized sound effects, optional ambient music and optional vibration.
 - No-op advertising service boundary.
 - PWA manifest, SVG icon and offline service worker.
@@ -27,7 +28,7 @@ Source files have been committed to the feature branch. The connected GitHub int
 - PWA cache behaviour must be checked on a deployed HTTPS origin, including update and offline-start scenarios.
 - The font import uses Google Fonts when online and falls back to system fonts when offline.
 - Level objectives need playtesting and difficulty calibration, especially multi-line and combo goals.
-- Interaction and visual behaviour need browser automation and real touch-device testing.
+- Browser interaction tests run in CI; real touch-device testing and accessibility review remain outstanding.
 
 ## Release checklist
 
