@@ -1,15 +1,15 @@
-import { createBoard, generatePieceSet, applyPlacement, clearRegion3x3, getAvailableMoves, hasAnyValidMove, hashSeed, PALETTE, rotatePiece, SIZE, type Board, type Piece, type Point } from './engine';
-import { loadSave, saveData, todayKey, type SaveData } from './storage';
+import { createBoard, generatePieceSet, applyPlacement, clearRegion3x3, getAvailableMoves, hasAnyValidMove, hashSeed, PALETTE, rotatePiece, SHAPE_LIBRARY, SIZE, type Board, type Piece, type Point } from './engine';
+import { clearSession, loadSave, loadSession, saveData, saveSession, todayKey, type SaveData } from './storage';
 import { LEVELS, isLevelComplete, starsForLevel } from './levels';
 import { audio } from './audio';
 import './style.css';
 
 type Screen='menu'|'classic'|'journey'|'daily'|'settings'|'stats'|'privacy';
 interface HistoryEntry { game:GameState; save:Pick<SaveData,'bestScore'|'totalScore'|'gamesPlayed'|'linesCleared'|'highestCombo'|'levelUnlocked'|'levelStars'|'dailyDate'|'dailyStreak'>; }
-interface GameState { board:Board; tray:Piece[]; rngSeed:number; score:number; combo:number; bloom:number; serial:number; selected:string|null; mode:'classic'|'level'|'daily'; level:number; moves:number; lines:number; multi:number; over:boolean; paused:boolean; }
+interface GameState { sessionDate:string|null; board:Board; tray:Piece[]; rngSeed:number; score:number; combo:number; bloom:number; serial:number; selected:string|null; mode:'classic'|'level'|'daily'; level:number; moves:number; lines:number; multi:number; over:boolean; paused:boolean; }
 const root=document.querySelector<HTMLDivElement>('#root')!;
 const save:SaveData=loadSave();
-let screen:Screen='menu',state:GameState=createGame('classic',1),toastTimer=0,history:HistoryEntry[]=[],lastActionAt=0,burstMode=false,burstPreview:{x:number;y:number}|null=null;
+let screen:Screen='menu',state:GameState=createGame('classic',1),toastTimer=0,history:HistoryEntry[]=[],lastActionAt=0,burstMode=false,burstPreview:{x:number;y:number}|null=null,hasSavedRound=false;
 let drag:{pieceId:string;startX:number;startY:number;pointerId:number;grabX:number;grabY:number;moved:boolean}|null=null;
 let pointerListenersReady=false,audioUnlocked=false;
 const clearFx=new Set<string>();
@@ -17,7 +17,7 @@ let clearFxToken=0;
 
 function createGame(mode:GameState['mode'],level:number):GameState{
  const seed=mode==='daily'?hashSeed('block-bloom:'+todayKey()):mode==='level'?hashSeed('block-bloom-level:'+level):((Math.random()*0xffffffff)>>>0);
- const game:GameState={board:createBoard(),tray:[],rngSeed:seed,score:0,combo:0,bloom:0,serial:0,selected:null,mode,level,moves:0,lines:0,multi:0,over:false,paused:false};
+ const game:GameState={sessionDate:mode==='daily'?todayKey():null,board:createBoard(),tray:[],rngSeed:seed,score:0,combo:0,bloom:0,serial:0,selected:null,mode,level,moves:0,lines:0,multi:0,over:false,paused:false};
  game.tray=generatePieceSet(()=>nextRandom(game),0);
  return game;
 }
