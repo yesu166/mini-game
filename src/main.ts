@@ -80,8 +80,9 @@ function restoreGameSession(value:unknown):GameState|null{
  };
  return hasAnyValidMove(restored.board,restored.tray)||restored.bloom>=100?restored:null;
 }
-const recoveredRound=restoreGameSession(loadSession());
-if(recoveredRound){state=recoveredRound;hasSavedRound=true;}
+const storedRound=loadSession();
+const recoveredRound=restoreGameSession(storedRound);
+if(recoveredRound){state=recoveredRound;hasSavedRound=true;}else if(storedRound!==null){clearSession();}
 function toast(message:string){const el=document.querySelector('#toast');if(el){el.textContent=message;el.classList.add('show');window.clearTimeout(toastTimer);toastTimer=window.setTimeout(()=>el.classList.remove('show'),1700);}}
 function nav(next:Screen){screen=next;render();}
 function button(label:string,action:string,cls='btn'):string{return `<button class="${cls}" data-action="${action}">${label}</button>`;}
@@ -303,12 +304,12 @@ function showEnd(){
 }
 root.addEventListener('click',e=>{
  const target=(e.target as HTMLElement).closest<HTMLElement>('[data-action],[data-level]');if(!target)return;
- if(target.dataset.level){const level=Number(target.dataset.level);state=createGame('level',level);history=[];screen='classic';burstMode=false;renderGame();return;}
+ if(target.dataset.level){const level=Number(target.dataset.level);state=createGame('level',level);history=[];save.gamesPlayed++;persist();screen='classic';burstMode=false;renderGame();return;}
  const action=target.dataset.action;
  if(action==='continue'){state.paused=false;state.selected=null;history=[];burstMode=false;burstPreview=null;screen='classic';renderGame();}
  else if(action==='classic'||action==='restart'){const mode=action==='restart'?state.mode:'classic',level=action==='restart'?state.level:1;state=createGame(mode,level);history=[];burstMode=false;burstPreview=null;screen='classic';if(action==='classic')save.gamesPlayed++;persist();renderGame();}
  else if(action==='journey')nav('journey');else if(action==='daily')nav('daily');
- else if(action==='start-daily'){if(save.dailyDate===todayKey()){toast('Today’s challenge is already complete.');return;}state=createGame('daily',1);history=[];burstMode=false;screen='classic';save.gamesPlayed++;renderGame();}
+ else if(action==='start-daily'){if(save.dailyDate===todayKey()){toast('Today’s challenge is already complete.');return;}state=createGame('daily',1);history=[];burstMode=false;screen='classic';save.gamesPlayed++;persist();renderGame();}
  else if(action==='settings')nav('settings');else if(action==='stats')nav('stats');else if(action==='privacy')nav('privacy');else if(action==='back'){burstMode=false;burstPreview=null;nav('menu');}
  else if(action==='pause'){state.paused=!state.paused;renderGame();}
  else if(action==='undo'){const prev=history.pop();if(prev)restoreSnapshot(prev);else toast('No move to undo yet.');}
