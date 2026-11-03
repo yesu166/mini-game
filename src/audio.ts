@@ -22,7 +22,7 @@ class AudioManager{
   this.musicEnabled=value;
   const context=this.ensureContext();if(!context)return;
   if(!value){this.stopMusic();return;}
-  if(this.musicNodes.length)return;
+  if(this.musicNodes.length&&this.musicEnabled)return;
   const gain=context.createGain();gain.gain.setValueAtTime(.0001,context.currentTime);
   gain.gain.setTargetAtTime(.018,context.currentTime,.9);gain.connect(context.destination);this.musicGain=gain;
   const notes=[110,164.81,220,329.63];
