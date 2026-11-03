@@ -23,8 +23,17 @@ test('a real piece can be selected and placed on the 8×8 board', async ({ page 
 
   await expect(page.locator('#board .filled')).toHaveCount(pieceCells);
   await expect(page.locator('#score')).not.toHaveText('0');
-  await expect(page.locator('.piece-slot').first()).toHaveClass(/used|selected|piece-slot/);
+  await expect(page.locator('.piece-slot').first()).toHaveClass(/used/);
   await page.screenshot({ path: testInfo.outputPath('block-bloom-first-move.png'), fullPage: true });
+});
+
+
+test('drag placement preserves the shape offset and lands on the board', async ({ page }) => {
+  await page.getByRole('button', { name: /PLAY CLASSIC/i }).click();
+  const piece = page.locator('.piece-slot:not(.used)').first();
+  const pieceCells = await piece.locator('.mini-grid i').count();
+  await piece.dragTo(page.locator('.cell[data-x="4"][data-y="4"]'), { steps: 8 });
+  await expect(page.locator('#board .filled')).toHaveCount(pieceCells);
 });
 
 test('campaign shows 30 levels in three named chapters', async ({ page }, testInfo) => {
