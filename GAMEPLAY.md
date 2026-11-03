@@ -38,7 +38,7 @@ Endless placement with score and local best-score tracking.
 Thirty hand-authored definitions across three chapters: First Light, Wild Grove and Moon Garden. Objectives cover score, line clears, consecutive clearing turns and multi-line clears. Levels include move limits, unlock progression and star rating. Level piece streams are seeded by level ID so the same level begins with the same piece sequence.
 
 ### Daily Bloom
-The daily challenge targets 500 points. Its piece stream is seeded from the user's local calendar date, allowing the challenge to be replayed consistently on that date without a server. Completion and streak are stored locally.
+The daily challenge targets 500 points. Its piece stream is seeded from the user's local calendar date, allowing the challenge to be replayed consistently on that date without a server. Completion and streak are stored locally. An unfinished round is also stored as a versioned local session and can be resumed from the home screen after a refresh; invalid or stale daily sessions are discarded safely.
 
 ## Controls and accessibility
 
@@ -47,6 +47,7 @@ The daily challenge targets 500 points. Its piece stream is seeded from the user
 - Select a piece and use ROTATE to rotate it clockwise.
 - HINT highlights a legal move and rotates the selected piece when needed.
 - UNDO restores the prior game board and associated saved statistics.
+- CONTINUE ROUND resumes a validated unfinished session after the app or browser is reopened.
 - Escape pauses/resumes. R rotates the selected piece. Backspace undoes a move.
 - Reduced-motion preferences are respected by the CSS animations.
 
