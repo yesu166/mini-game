@@ -33,7 +33,7 @@ function render(){
  if(screen==='stats'){root.innerHTML=`<main class="shell page">${header('Your garden','Every round makes you sharper.') }<div class="stat-grid"><div class="panel"><small>BEST SCORE</small><strong>${save.bestScore}</strong></div><div class="panel"><small>GAMES PLAYED</small><strong>${save.gamesPlayed}</strong></div><div class="panel"><small>LINES CLEARED</small><strong>${save.linesCleared}</strong></div><div class="panel"><small>BEST COMBO</small><strong>${save.highestCombo}×</strong></div></div>${button('BACK TO GARDEN','back','btn primary')}</main>`;return;}
  if(screen==='privacy'){root.innerHTML=`<main class="shell page">${header('Privacy','Simple by design.') }<section class="panel"><h3>Local game data</h3><p>BLOCK BLOOM stores your best score, game statistics, level stars, settings and daily challenge completion in this browser's local storage. No account or remote gameplay telemetry is enabled.</p><h3>Advertising</h3><p>No advertising SDK is enabled. Any future advertising integration must disclose the provider and obtain required consent before release.</p><h3>External resources</h3><p>The interface currently requests Google Fonts when online. The game engine itself does not need an internet connection.</p></section>${button('BACK','back','btn primary')}</main>`;return;}
  if(screen==='journey'){root.innerHTML=`<main class="shell page">${header('Level journey','Thirty tiny challenges. One growing garden.') }<div class="level-grid">${LEVELS.map(l=>{const unlocked=l.id<=save.levelUnlocked,stars=save.levelStars[l.id]||0;return `<button class="level-card ${unlocked?'':'locked'}" data-level="${l.id}" ${unlocked?'':'disabled'}><span>${String(l.id).padStart(2,'0')}</span><b>${l.name}</b><small>${unlocked?'★'.repeat(stars)+'☆'.repeat(3-stars):'🔒 LOCKED'}</small></button>`;}).join('')}</div>${button('BACK TO GARDEN','back','btn primary')}</main>`;return;}
- if(screen==='daily'){const done=save.dailyDate===todayKey();root.innerHTML=`<main class="shell page">${header('Daily bloom','One seed. One challenge. Every day.') }<section class="daily-card"><div class="daily-flower">✿</div><div class="eyebrow">TODAY'S CHALLENGE</div><h2>Make 500 points</h2><p>Build a beautiful chain of clears. You have a fresh board and three pieces at a time.</p><div class="daily-status">${done?'✓ COMPLETED TODAY':'✦ '+save.dailyStreak+' DAY STREAK'}</div>${button(done?'PLAY CLASSIC':'START DAILY CHALLENGE','start-daily','btn primary')}</section>${button('BACK TO GARDEN','back','btn soft')}</main>`;return;}
+ if(screen==='daily'){const done=save.dailyDate===todayKey();root.innerHTML=`<main class="shell page">${header('Daily bloom','One seed. One challenge. Every day.') }<section class="daily-card"><div class="daily-flower">✿</div><div class="eyebrow">TODAY'S CHALLENGE</div><h2>Make 500 points</h2><p>Build a beautiful chain of clears. You have a fresh board and three pieces at a time.</p><div class="daily-status">${done?'✓ COMPLETED TODAY':'✦ '+save.dailyStreak+' DAY STREAK'}</div>${done?button('PLAY CLASSIC','classic','btn primary'):button('START DAILY CHALLENGE','start-daily','btn primary')}</section>${button('BACK TO GARDEN','back','btn soft')}</main>`;return;}
  renderGame();
 }
 function pieceMarkup(piece:Piece):string{
@@ -186,7 +186,7 @@ root.addEventListener('click',e=>{
  const target=(e.target as HTMLElement).closest<HTMLElement>('[data-action],[data-level]');if(!target)return;
  if(target.dataset.level){const level=Number(target.dataset.level);state=createGame('level',level);history=[];screen='classic';burstMode=false;renderGame();return;}
  const action=target.dataset.action;
- if(action==='classic'||action==='restart'){state=createGame('classic',1);history=[];burstMode=false;screen='classic';if(action==='classic')save.gamesPlayed++;renderGame();}
+ if(action==='classic'||action==='restart'){const mode=action==='restart'?state.mode:'classic',level=action==='restart'?state.level:1;state=createGame(mode,level);history=[];burstMode=false;screen='classic';if(action==='classic')save.gamesPlayed++;persist();renderGame();}
  else if(action==='journey')nav('journey');else if(action==='daily')nav('daily');
  else if(action==='start-daily'){if(save.dailyDate===todayKey()){toast('Today’s challenge is already complete.');return;}state=createGame('daily',1);history=[];burstMode=false;screen='classic';save.gamesPlayed++;renderGame();}
  else if(action==='settings')nav('settings');else if(action==='stats')nav('stats');else if(action==='privacy')nav('privacy');else if(action==='back'){burstMode=false;nav('menu');}
@@ -202,6 +202,12 @@ root.addEventListener('change',e=>{
 });
 audio.setEnabled(save.sound);
 render();
+window.addEventListener('keydown',e=>{
+ if(screen!=='classic'||e.repeat||e.target instanceof HTMLInputElement||e.target instanceof HTMLTextAreaElement)return;
+ if(e.key==='Escape'){e.preventDefault();state.paused=!state.paused;renderGame();}
+ else if((e.key==='r'||e.key==='R')&&!state.paused&&!state.over){const piece=state.tray.find(p=>p.id===state.selected&&!p.used);if(piece){piece.cells=rotatePiece(piece.cells);renderGame();}}
+ else if(e.key==='Backspace'&&!state.paused){e.preventDefault();const previous=history.pop();if(previous){state=previous;burstMode=false;renderGame();}}
+});
 if(import.meta.env.PROD&&'serviceWorker' in navigator){
  window.addEventListener('load',()=>{navigator.serviceWorker.register('/sw.js').catch(()=>{});});
 }
