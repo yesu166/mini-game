@@ -158,3 +158,10 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--mint);outline-o
 @keyframes clearflare{0%{opacity:0;transform:scale(.35)}40%{opacity:1;transform:scale(1.25)}100%{opacity:0;transform:scale(1.8)}}
 @keyframes score-rise{0%{opacity:0;transform:translate(-50%,18px) scale(.82)}16%{opacity:1;transform:translate(-50%,0) scale(1.06)}72%{opacity:1;transform:translate(-50%,-27px) scale(1)}100%{opacity:0;transform:translate(-50%,-50px) scale(.96)}}
 @keyframes spark-out{0%{opacity:0;transform:translate(-50%,-50%) scale(.2)}18%{opacity:1}100%{opacity:0;transform:translate(-50%,-50%) translate(var(--tx),var(--ty)) scale(var(--scale))}}
+
+.burst-confirm-bar{display:grid;grid-template-columns:1fr 1.2fr .8fr;align-items:center;gap:8px;padding:10px;border:1px solid rgba(191,159,255,.28);border-radius:17px;background:linear-gradient(115deg,rgba(133,96,205,.18),rgba(43,49,77,.42));box-shadow:inset 0 1px rgba(255,255,255,.08),0 8px 25px rgba(0,0,0,.16);animation:burstbar-in .2s ease-out}
+.burst-confirm-bar span{font-size:9px;font-weight:900;letter-spacing:1.1px;color:#d8c9ff;white-space:nowrap}
+.burst-confirm-bar .btn{min-height:39px;padding:9px 6px;font-size:9px;letter-spacing:.5px}
+.burst-confirm-bar .btn:disabled{opacity:.35;filter:saturate(.4);cursor:not-allowed;transform:none}
+@keyframes burstbar-in{from{opacity:0;transform:translateY(7px)}to{opacity:1;transform:translateY(0)}}
+@media(max-width:365px){.burst-confirm-bar{grid-template-columns:1fr 1fr}.burst-confirm-bar span{grid-column:1/-1}.burst-confirm-bar .btn{min-height:36px}}
