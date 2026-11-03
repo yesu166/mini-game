@@ -147,3 +147,14 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--mint);outline-o
 .cell.preview-valid{animation:previewpulse .55s ease-in-out infinite alternate}
 @keyframes previewpulse{from{filter:brightness(1);transform:scale(.96)}to{filter:brightness(1.4);transform:scale(1.04)}}
 @media(max-width:360px){.game-actions{gap:5px}.game-actions .btn{font-size:8px;letter-spacing:.35px;padding:10px 2px}.meta-pill{font-size:8px}}
+
+.cell.clear-fx{z-index:3;border-color:rgba(255,223,158,.9);box-shadow:0 0 0 2px rgba(255,201,104,.13),0 0 20px rgba(255,201,104,.35);animation:lineclear .48s cubic-bezier(.15,.8,.2,1) both}
+.cell.clear-fx:before{content:"";position:absolute;inset:-45%;border-radius:50%;background:radial-gradient(circle,rgba(255,245,210,.9) 0,rgba(255,198,110,.5) 18%,transparent 68%);pointer-events:none;animation:clearflare .48s ease-out both}
+.score-pop{position:absolute;z-index:15;left:50%;top:45%;transform:translate(-50%,0);padding:8px 13px;border:1px solid rgba(255,255,255,.23);border-radius:999px;background:linear-gradient(120deg,rgba(46,66,88,.96),rgba(24,40,58,.96));box-shadow:0 8px 24px rgba(0,0,0,.35),0 0 23px rgba(255,201,104,.12);color:#fff2d8;font:900 15px Outfit;letter-spacing:.3px;white-space:nowrap;pointer-events:none;animation:score-rise .86s cubic-bezier(.2,.8,.3,1) both}
+.score-pop.combo-pop{color:#e9dcff;border-color:rgba(190,154,255,.55);box-shadow:0 8px 28px rgba(0,0,0,.32),0 0 28px rgba(174,137,255,.27)}
+.score-pop.burst-pop{color:#fff0ba;border-color:rgba(255,211,126,.65);font-size:18px;box-shadow:0 8px 28px rgba(0,0,0,.32),0 0 38px rgba(255,196,95,.3)}
+.bloom-particle{position:absolute;z-index:12;left:50%;top:50%;width:7px;height:7px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#fff9dc,#ffd06e 58%,#ff8b9f);box-shadow:0 0 12px rgba(255,210,122,.85);pointer-events:none;animation:spark-out .78s cubic-bezier(.15,.65,.2,1) both}
+@keyframes lineclear{0%{transform:scale(.86);opacity:1}50%{transform:scale(1.12);opacity:1}100%{transform:scale(.65);opacity:0}}
+@keyframes clearflare{0%{opacity:0;transform:scale(.35)}40%{opacity:1;transform:scale(1.25)}100%{opacity:0;transform:scale(1.8)}}
+@keyframes score-rise{0%{opacity:0;transform:translate(-50%,18px) scale(.82)}16%{opacity:1;transform:translate(-50%,0) scale(1.06)}72%{opacity:1;transform:translate(-50%,-27px) scale(1)}100%{opacity:0;transform:translate(-50%,-50px) scale(.96)}}
+@keyframes spark-out{0%{opacity:0;transform:translate(-50%,-50%) scale(.2)}18%{opacity:1}100%{opacity:0;transform:translate(-50%,-50%) translate(var(--tx),var(--ty)) scale(var(--scale))}}
