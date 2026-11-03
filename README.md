@@ -37,7 +37,7 @@ GitHub Actions runs the engine, campaign and storage suite, a strict TypeScript/
 - Complete rows and columns. Simultaneous line intersections are cleared and scored once.
 - Bloom Charge powers Bloom Burst: choose a 3 × 3 board region, inspect the highlighted preview, then confirm or cancel.
 - Classic endless play, a 30-level objective journey in three chapters, and a date-seeded daily challenge.
-- Local save records, sound effects, optional ambient synth music and vibration where supported.
+- Local save records and validated active-round recovery with a Continue Round entry point, plus sound effects, optional ambient synth music and vibration where supported.
 - Responsive installable web shell with offline cache support after the first network load.
 
 See [GAMEPLAY.md](./GAMEPLAY.md) for rules and [RELEASE.md](./RELEASE.md) for limitations and release steps.
