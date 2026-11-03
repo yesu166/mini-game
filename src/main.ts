@@ -103,7 +103,7 @@ function bindGameEvents(){
    const p=state.tray.find(v=>v.id===el.dataset.piece);if(!p||p.used)return;
    const pe=e as PointerEvent;
    const source=(pe.target as HTMLElement).closest<HTMLElement>('[data-px]');
-   drag={pieceId:p.id,startX:pe.clientX,startY:pe.clientY,pointerId:pe.pointerId,grabX:Number(source?.dataset.px??0),grabY:Number(source?.dataset.py??0),moved:false};
+   drag={pieceId:p.id,startX:pe.clientX,startY:pe.clientY,pointerId:pe.pointerId,grabX:Number(source?.dataset.px??p.cells[0][0]),grabY:Number(source?.dataset.py??p.cells[0][1]),moved:false};
    state.selected=p.id;
    document.querySelectorAll('.piece-slot').forEach(n=>n.classList.toggle('selected',(n as HTMLElement).dataset.piece===p.id));
    el.classList.add('dragging');
