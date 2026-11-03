@@ -1,4 +1,4 @@
-import { createBoard, generatePieceSet, applyPlacement, clearRegion3x3, getAvailableMoves, hasAnyValidMove, hashSeed, PALETTE, rotatePiece, seededRandom, SIZE, type Board, type Piece, type Point } from './engine';
+import { createBoard, generatePieceSet, applyPlacement, clearRegion3x3, getAvailableMoves, hasAnyValidMove, hashSeed, PALETTE, rotatePiece, SIZE, type Board, type Piece, type Point } from './engine';
 import { loadSave, saveData, todayKey, type SaveData } from './storage';
 import { LEVELS, isLevelComplete, starsForLevel } from './levels';
 import { audio } from './audio';
