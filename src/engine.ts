@@ -5,7 +5,7 @@ export type Point = [number, number];
 export interface Shape { id: string; cells: Point[]; weight: number }
 export interface Piece { id: string; shapeId: string; cells: Point[]; color: number; used: boolean }
 export interface ClearResult { rows: number[]; columns: number[]; cleared: number; board: Board }
-export interface PlacementResult { board: Board; cleared: number; lines: number; score: number; combo: number; bloom: number }
+export interface PlacementResult { board: Board; cleared: number; rows: number[]; columns: number[]; lines: number; score: number; combo: number; bloom: number }
 export const PALETTE = ['#ff6b75','#ffc95c','#36d7ad','#5e9cff','#a486f5','#ff82c7','#ff995f'] as const;
 
 const SHAPES: Shape[] = [
@@ -110,7 +110,7 @@ export function applyPlacement(board:Board,piece:Piece,x:number,y:number,combo:n
   if(piece.used)throw new Error('Piece has already been used');
   const placed=placePiece(board,piece.cells,x,y,piece.color),result=clearCompletedLines(placed),lines=result.rows.length+result.columns.length;
   const nextCombo=calculateCombo(combo,lines),gain=lines*20;
-  return {board:result.board,cleared:result.cleared,lines,score:calculateScore(piece.cells.length,lines,nextCombo),combo:nextCombo,bloom:Math.min(100,bloom+gain)};
+  return {board:result.board,cleared:result.cleared,rows:result.rows,columns:result.columns,lines,score:calculateScore(piece.cells.length,lines,nextCombo),combo:nextCombo,bloom:Math.min(100,bloom+gain)};
 }
 
 export function seededRandom(seed:number):()=>number{
