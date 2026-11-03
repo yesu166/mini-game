@@ -8,7 +8,7 @@ type Screen='menu'|'classic'|'journey'|'daily'|'settings'|'stats'|'privacy';
 interface GameState { board:Board; tray:Piece[]; rngSeed:number; score:number; combo:number; bloom:number; serial:number; selected:string|null; mode:'classic'|'level'|'daily'; level:number; moves:number; lines:number; multi:number; over:boolean; paused:boolean; }
 const root=document.querySelector<HTMLDivElement>('#root')!;
 const save:SaveData=loadSave();
-let screen:Screen='menu',state:GameState=createGame('classic',1),toastTimer=0,history:GameState[]=[],lastActionAt=0,burstMode=false;
+let screen:Screen='menu',state:GameState=createGame('classic',1),toastTimer=0,history:GameState[]=[],lastActionAt=0,burstMode=false,burstPreview:{x:number;y:number}|null=null;
 let drag:{pieceId:string;startX:number;startY:number;pointerId:number;grabX:number;grabY:number;moved:boolean}|null=null;
 let pointerListenersReady=false;
 const clearFx=new Set<string>();
@@ -44,7 +44,7 @@ function pieceMarkup(piece:Piece):string{
 }
 function renderGame(){
  const level=state.mode==='level'?LEVELS[state.level-1]:null;
- root.innerHTML=`<main class="shell game-shell"><header class="game-head"><button class="icon-btn" data-action="back">←</button><div><div class="eyebrow">${state.mode==='classic'?'CLASSIC MODE':state.mode==='daily'?'DAILY BLOOM':`LEVEL ${state.level} / 30`}</div><div class="score-number" id="score">${state.score.toLocaleString()}</div><small>SCORE ${level?`· TARGET ${level.target}`:''}</small></div><button class="icon-btn" data-action="pause">Ⅱ</button></header><div class="meta-row"><div class="meta-pill">✦ <b>${state.combo}</b> COMBO</div><div class="meta-pill bloom-pill"><span>✿ BLOOM</span><div class="meter"><i id="bloom-meter" style="width:${state.bloom}%"></i></div><b>${state.bloom}%</b></div><button class="burst-btn" data-action="burst" ${state.bloom<100?'disabled':''}>✺ BURST</button></div><section class="board-wrap"><div class="board" id="board" aria-label="Eight by eight puzzle board">${state.board.flatMap((row,y)=>row.map((cell,x)=>`<div class="cell ${cell===null?'':'filled'} ${clearFx.has(x+','+y)?'clear-fx':''}" data-x="${x}" data-y="${y}" ${cell===null?'':`style="--block:${PALETTE[cell]}"`}></div>`)).join('')}</div></section><div class="helper">${state.paused?'Game paused. Resume when ready.':level?level.hint:'Drag a shape onto the board. Tap a shape then tap the board to place it.'}</div><div class="tray" id="tray">${state.tray.map(p=>`<button class="piece-slot ${p.used?'used':''} ${state.selected===p.id?'selected':''}" data-piece="${p.id}" ${p.used?'disabled':''} aria-label="Select shape"><span class="mini-piece">${pieceMarkup(p)}</span><small>${p.cells.length}</small></button>`).join('')}</div><div class="game-actions">${button('↶ UNDO','undo','btn soft')}${button('↻ ROTATE','rotate','btn soft')}${button('💡 HINT','hint','btn soft')}${button('↻ RESET','restart','btn soft')}</div><div id="toast" class="toast"></div></main>`;
+ root.innerHTML=`<main class="shell game-shell"><header class="game-head"><button class="icon-btn" data-action="back">←</button><div><div class="eyebrow">${state.mode==='classic'?'CLASSIC MODE':state.mode==='daily'?'DAILY BLOOM':`LEVEL ${state.level} / 30`}</div><div class="score-number" id="score">${state.score.toLocaleString()}</div><small>SCORE ${level?`· TARGET ${level.target}`:''}</small></div><button class="icon-btn" data-action="pause">Ⅱ</button></header><div class="meta-row"><div class="meta-pill">✦ <b>${state.combo}</b> COMBO</div><div class="meta-pill bloom-pill"><span>✿ BLOOM</span><div class="meter"><i id="bloom-meter" style="width:${state.bloom}%"></i></div><b>${state.bloom}%</b></div><button class="burst-btn" data-action="burst" ${state.bloom<100?'disabled':''}>✺ BURST</button></div><section class="board-wrap"><div class="board" id="board" aria-label="Eight by eight puzzle board">${state.board.flatMap((row,y)=>row.map((cell,x)=>`<div class="cell ${cell===null?'':'filled'} ${clearFx.has(x+','+y)?'clear-fx':''} ${burstPreview&&x>=burstPreview.x&&x<burstPreview.x+3&&y>=burstPreview.y&&y<burstPreview.y+3?'burst-target':''}" data-x="${x}" data-y="${y}" ${cell===null?'':`style="--block:${PALETTE[cell]}"`}></div>`)).join('')}</div></section>${burstMode?'<div class="burst-confirm-bar"><span>✦ 3 × 3 TARGET</span><button class="btn primary" data-action="confirm-burst" '+(burstPreview?'':'disabled')+'>CLEAR REGION</button><button class="btn soft" data-action="cancel-burst">CANCEL</button></div>':''}<div class="helper">${state.paused?'Game paused. Resume when ready.':level?level.hint:'Drag a shape onto the board. Tap a shape then tap the board to place it.'}</div><div class="tray" id="tray">${state.tray.map(p=>`<button class="piece-slot ${p.used?'used':''} ${state.selected===p.id?'selected':''}" data-piece="${p.id}" ${p.used?'disabled':''} aria-label="Select shape"><span class="mini-piece">${pieceMarkup(p)}</span><small>${p.cells.length}</small></button>`).join('')}</div><div class="game-actions">${button('↶ UNDO','undo','btn soft')}${button('↻ ROTATE','rotate','btn soft')}${button('💡 HINT','hint','btn soft')}${button('↻ RESET','restart','btn soft')}</div><div id="toast" class="toast"></div></main>`;
  if(state.paused){
   const layer=document.createElement('div');layer.className='modal-backdrop pause-backdrop';
   layer.innerHTML='<section class="modal pause-modal"><div class="modal-flower">Ⅱ</div><div class="eyebrow">TAKE A BREATH</div><h2>Garden paused</h2><p>Your board is safe. Take a moment, then come back for the next move.</p><button class="btn primary" data-pause="resume">RESUME GAME</button><button class="btn soft" data-pause="restart">RESTART ROUND</button><button class="btn soft" data-pause="home">GARDEN HOME</button></section>';
@@ -93,13 +93,13 @@ function bindGameEvents(){
  board.addEventListener('pointerdown',e=>{
   const cell=(e.target as HTMLElement).closest<HTMLElement>('.cell');if(!cell||state.paused||state.over)return;
   const x=Number(cell.dataset.x),y=Number(cell.dataset.y);
-  if(burstMode){activateBurstAt(x,y);return;}
+  if(burstMode){selectBurstRegion(x,y);return;}
   const piece=state.tray.find(p=>p.id===state.selected&&!p.used);
   if(piece)commit(piece,x,y);
  });
  document.querySelectorAll<HTMLElement>('[data-piece]').forEach(el=>{
   el.addEventListener('pointerdown',e=>{
-   if(state.paused||state.over)return;
+   if(state.paused||state.over||burstMode)return;
    const p=state.tray.find(v=>v.id===el.dataset.piece);if(!p||p.used)return;
    const pe=e as PointerEvent;
    const source=(pe.target as HTMLElement).closest<HTMLElement>('[data-px]');
@@ -190,13 +190,19 @@ function commit(piece:Piece,x:number,y:number){
  persist();renderGame();showScoreFx(result.score,result.lines);if(state.over)showEnd();
 }
 function canFitAt(piece:Piece,x:number,y:number):boolean{return piece.cells.every(([dx,dy])=>x+dx<SIZE&&y+dy<SIZE&&x+dx>=0&&y+dy>=0&&state.board[y+dy]?.[x+dx]===null);}
+function selectBurstRegion(x:number,y:number){
+ if(x+3>SIZE||y+3>SIZE){toast('Choose a 3 × 3 area fully on the board.');return;}
+ const candidate=clearRegion3x3(state.board,x,y);
+ if(!candidate.cleared){toast('Choose an area with blocks inside.');return;}
+ burstPreview={x,y};renderGame();toast(candidate.cleared+' blocks selected. Confirm the Bloom Burst.');
+}
 function activateBurstAt(x:number,y:number){
  if(state.bloom<100||!burstMode){toast('Bloom Burst is not ready.');return;}
  if(x+3>SIZE||y+3>SIZE){toast('Choose a 3 × 3 area fully on the board.');return;}
  const result=clearRegion3x3(state.board,x,y);
  if(!result.cleared){toast('Choose an area with blocks inside.');return;}
  takeSnapshot();state.board=result.board;
- const bonus=result.cleared*15;state.score+=bonus;state.bloom=0;state.combo=0;burstMode=false;state.moves++;
+ const bonus=result.cleared*15;state.score+=bonus;state.bloom=0;state.combo=0;burstMode=false;burstPreview=null;state.moves++;
  save.totalScore+=bonus;save.bestScore=Math.max(save.bestScore,state.mode==='classic'?state.score:0);
  if(state.mode==='level'&&state.moves>=LEVELS[state.level-1].moves)state.over=!isLevelComplete(LEVELS[state.level-1],{score:state.score,lines:state.lines,combo:state.combo,multi:state.multi});
  if(!hasAnyValidMove(state.board,state.tray))state.over=true;
@@ -215,15 +221,17 @@ root.addEventListener('click',e=>{
  const target=(e.target as HTMLElement).closest<HTMLElement>('[data-action],[data-level]');if(!target)return;
  if(target.dataset.level){const level=Number(target.dataset.level);state=createGame('level',level);history=[];screen='classic';burstMode=false;renderGame();return;}
  const action=target.dataset.action;
- if(action==='classic'||action==='restart'){const mode=action==='restart'?state.mode:'classic',level=action==='restart'?state.level:1;state=createGame(mode,level);history=[];burstMode=false;screen='classic';if(action==='classic')save.gamesPlayed++;persist();renderGame();}
+ if(action==='classic'||action==='restart'){const mode=action==='restart'?state.mode:'classic',level=action==='restart'?state.level:1;state=createGame(mode,level);history=[];burstMode=false;burstPreview=null;screen='classic';if(action==='classic')save.gamesPlayed++;persist();renderGame();}
  else if(action==='journey')nav('journey');else if(action==='daily')nav('daily');
  else if(action==='start-daily'){if(save.dailyDate===todayKey()){toast('Today’s challenge is already complete.');return;}state=createGame('daily',1);history=[];burstMode=false;screen='classic';save.gamesPlayed++;renderGame();}
- else if(action==='settings')nav('settings');else if(action==='stats')nav('stats');else if(action==='privacy')nav('privacy');else if(action==='back'){burstMode=false;nav('menu');}
+ else if(action==='settings')nav('settings');else if(action==='stats')nav('stats');else if(action==='privacy')nav('privacy');else if(action==='back'){burstMode=false;burstPreview=null;nav('menu');}
  else if(action==='pause'){state.paused=!state.paused;renderGame();}
  else if(action==='undo'){const prev=history.pop();if(prev){state=prev;burstMode=false;renderGame();}else toast('No move to undo yet.');}
  else if(action==='rotate'){if(state.paused||state.over)return;const piece=state.tray.find(p=>p.id===state.selected&&!p.used);if(!piece){toast('Select a piece first.');return;}piece.cells=rotatePiece(piece.cells);renderGame();toast('Piece rotated.');}
- else if(action==='hint'){if(state.paused||state.over)return;const moves=getAvailableMoves(state.board,state.tray);if(!moves.length){toast('No open placements remain.');return;}const move=moves[0],hintPiece=state.tray.find(p=>p.id===move.pieceId);if(hintPiece&&move.turns>0){hintPiece.cells=rotatePiece(hintPiece.cells,move.turns);renderGame();}state.selected=move.pieceId;document.querySelectorAll('.piece-slot').forEach(el=>el.classList.toggle('selected',(el as HTMLElement).dataset.piece===move.pieceId));toast(`Try column ${move.x+1}, row ${move.y+1}.`);}
- else if(action==='burst'){if(state.bloom<100){toast('Fill the Bloom meter first.');return;}burstMode=true;state.selected=null;toast('Tap the top-left cell of an open 3 × 3 area.');}
+ else if(action==='confirm-burst'){if(!burstPreview){toast('Choose a 3 × 3 region first.');return;}activateBurstAt(burstPreview.x,burstPreview.y);}
+ else if(action==='cancel-burst'){burstMode=false;burstPreview=null;renderGame();}
+ else if(action==='hint'){if(state.paused||state.over)return;burstMode=false;burstPreview=null;const moves=getAvailableMoves(state.board,state.tray);if(!moves.length){toast('No open placements remain.');return;}const move=moves[0],hintPiece=state.tray.find(p=>p.id===move.pieceId);if(hintPiece&&move.turns>0){hintPiece.cells=rotatePiece(hintPiece.cells,move.turns);renderGame();}state.selected=move.pieceId;document.querySelectorAll('.piece-slot').forEach(el=>el.classList.toggle('selected',(el as HTMLElement).dataset.piece===move.pieceId));toast(`Try column ${move.x+1}, row ${move.y+1}.`);}
+ else if(action==='burst'){if(state.bloom<100){toast('Fill the Bloom meter first.');return;}burstMode=true;burstPreview=null;state.selected=null;renderGame();toast('Tap a 3 × 3 area on the board to preview it.');}
 });
 root.addEventListener('change',e=>{
  const el=e.target as HTMLInputElement;if(!el.dataset.setting)return;
