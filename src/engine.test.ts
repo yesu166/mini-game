@@ -73,4 +73,12 @@ describe('BLOCK BLOOM deterministic puzzle engine',()=>{
   const a=seededRandom(hashSeed('2026-11-04')),b=seededRandom(hashSeed('2026-11-04'));
   expect(Array.from({length:10},a)).toEqual(Array.from({length:10},b));
  });
+ it('does not declare game-over when a remaining piece fits after rotation',()=>{
+  const board=createBoard().map(row=>row.map(()=>0));
+  board[0][0]=null;board[1][0]=null;board[2][0]=null;
+  const horizontal:Piece={id:'line',shapeId:'line',cells:[[0,0],[1,0],[2,0]],color:1,used:false};
+  expect(getAvailableMoves(board,[horizontal])).toHaveLength(0);
+  expect(hasAnyValidMove(board,[horizontal])).toBe(true);
+ });
+
 });
