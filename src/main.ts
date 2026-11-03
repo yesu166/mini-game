@@ -5,10 +5,11 @@ import { audio } from './audio';
 import './style.css';
 
 type Screen='menu'|'classic'|'journey'|'daily'|'settings'|'stats'|'privacy';
+interface HistoryEntry { game:GameState; save:Pick<SaveData,'bestScore'|'totalScore'|'gamesPlayed'|'linesCleared'|'highestCombo'|'levelUnlocked'|'levelStars'|'dailyDate'|'dailyStreak'>; }
 interface GameState { board:Board; tray:Piece[]; rngSeed:number; score:number; combo:number; bloom:number; serial:number; selected:string|null; mode:'classic'|'level'|'daily'; level:number; moves:number; lines:number; multi:number; over:boolean; paused:boolean; }
 const root=document.querySelector<HTMLDivElement>('#root')!;
 const save:SaveData=loadSave();
-let screen:Screen='menu',state:GameState=createGame('classic',1),toastTimer=0,history:GameState[]=[],lastActionAt=0,burstMode=false,burstPreview:{x:number;y:number}|null=null;
+let screen:Screen='menu',state:GameState=createGame('classic',1),toastTimer=0,history:HistoryEntry[]=[],lastActionAt=0,burstMode=false,burstPreview:{x:number;y:number}|null=null;
 let drag:{pieceId:string;startX:number;startY:number;pointerId:number;grabX:number;grabY:number;moved:boolean}|null=null;
 let pointerListenersReady=false;
 const clearFx=new Set<string>();
@@ -55,7 +56,18 @@ function renderGame(){
  }
  bindGameEvents();
 }
-function takeSnapshot(){history.push({...state,board:state.board.map(r=>[...r]),tray:state.tray.map(p=>({...p,cells:p.cells.map(c=>[...c] as Point)}))});if(history.length>25)history.shift();}
+function takeSnapshot(){
+ history.push({
+  game:{...state,board:state.board.map(r=>[...r]),tray:state.tray.map(p=>({...p,cells:p.cells.map(c=>[...c] as Point)}))},
+  save:{bestScore:save.bestScore,totalScore:save.totalScore,gamesPlayed:save.gamesPlayed,linesCleared:save.linesCleared,highestCombo:save.highestCombo,levelUnlocked:save.levelUnlocked,levelStars:{...save.levelStars},dailyDate:save.dailyDate,dailyStreak:save.dailyStreak}
+ });
+ if(history.length>25)history.shift();
+}
+function restoreSnapshot(entry:HistoryEntry){
+ state=entry.game;
+ Object.assign(save,entry.save,{levelStars:{...entry.save.levelStars}});
+ burstMode=false;burstPreview=null;persist();renderGame();
+}
 function applyClearFx(rows:number[],columns:number[]){
  clearFx.clear();
  for(const y of rows)for(let x=0;x<SIZE;x++)clearFx.add(x+','+y);
@@ -226,7 +238,7 @@ root.addEventListener('click',e=>{
  else if(action==='start-daily'){if(save.dailyDate===todayKey()){toast('Today’s challenge is already complete.');return;}state=createGame('daily',1);history=[];burstMode=false;screen='classic';save.gamesPlayed++;renderGame();}
  else if(action==='settings')nav('settings');else if(action==='stats')nav('stats');else if(action==='privacy')nav('privacy');else if(action==='back'){burstMode=false;burstPreview=null;nav('menu');}
  else if(action==='pause'){state.paused=!state.paused;renderGame();}
- else if(action==='undo'){const prev=history.pop();if(prev){state=prev;burstMode=false;burstPreview=null;renderGame();}else toast('No move to undo yet.');}
+ else if(action==='undo'){const prev=history.pop();if(prev)restoreSnapshot(prev);else toast('No move to undo yet.');}
  else if(action==='rotate'){if(state.paused||state.over)return;burstMode=false;burstPreview=null;const piece=state.tray.find(p=>p.id===state.selected&&!p.used);if(!piece){toast('Select a piece first.');return;}piece.cells=rotatePiece(piece.cells);renderGame();toast('Piece rotated.');}
  else if(action==='confirm-burst'){if(!burstPreview){toast('Choose a 3 × 3 region first.');return;}activateBurstAt(burstPreview.x,burstPreview.y);}
  else if(action==='cancel-burst'){burstMode=false;burstPreview=null;renderGame();}
@@ -243,7 +255,7 @@ window.addEventListener('keydown',e=>{
  if(screen!=='classic'||e.repeat||e.target instanceof HTMLInputElement||e.target instanceof HTMLTextAreaElement)return;
  if(e.key==='Escape'){e.preventDefault();state.paused=!state.paused;renderGame();}
  else if((e.key==='r'||e.key==='R')&&!state.paused&&!state.over){const piece=state.tray.find(p=>p.id===state.selected&&!p.used);if(piece){piece.cells=rotatePiece(piece.cells);renderGame();}}
- else if(e.key==='Backspace'&&!state.paused){e.preventDefault();const previous=history.pop();if(previous){state=previous;burstMode=false;renderGame();}}
+ else if(e.key==='Backspace'&&!state.paused){e.preventDefault();const previous=history.pop();if(previous)restoreSnapshot(previous);}
 });
 if(import.meta.env.PROD&&'serviceWorker' in navigator){
  window.addEventListener('load',()=>{navigator.serviceWorker.register('/sw.js').catch(()=>{});});
