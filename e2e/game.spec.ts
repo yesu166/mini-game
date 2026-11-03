@@ -46,6 +46,24 @@ test('undo rolls the board and saved score back together', async ({ page }) => {
   await expect(page.locator('.stat-grid')).toContainText('0');
 });
 
+
+test('an interrupted round can be continued after a page reload', async ({ page }) => {
+  await page.getByRole('button', { name: /PLAY CLASSIC/i }).click();
+  const piece = page.locator('.piece-slot:not(.used)').first();
+  const pieceCells = await piece.locator('.mini-grid i').count();
+  await piece.click();
+  await page.locator('.cell[data-x="0"][data-y="0"]').click();
+  const score = await page.locator('#score').textContent();
+  await expect(page.locator('#board .filled')).toHaveCount(pieceCells);
+
+  await page.reload();
+  const resume = page.getByRole('button', { name: /CONTINUE ROUND/i });
+  await expect(resume).toBeVisible();
+  await resume.click();
+  await expect(page.locator('#board .filled')).toHaveCount(pieceCells);
+  await expect(page.locator('#score')).toHaveText(score ?? '');
+});
+
 test('drag placement preserves the shape offset and lands on the board', async ({ page }) => {
   await page.getByRole('button', { name: /PLAY CLASSIC/i }).click();
   const piece = page.locator('.piece-slot:not(.used)').first();
