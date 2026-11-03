@@ -10,7 +10,7 @@ on:
 jobs:
   verify:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -18,9 +18,20 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
-      - name: Install
+      - name: Install dependencies
         run: npm install --no-audit --no-fund
-      - name: Engine and storage tests
+      - name: Engine, campaign and storage tests
         run: npm test
       - name: Production build
         run: npm run build
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Browser interaction tests
+        run: npm run test:e2e
+      - name: Upload browser screenshots and traces
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: block-bloom-browser-evidence
+          path: test-results/
+          if-no-files-found: ignore
