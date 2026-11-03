@@ -1,5 +1,5 @@
 import {describe,it,expect} from 'vitest';
-import {DEFAULT_SAVE,loadSave,saveData,todayKey,type SaveData} from './storage';
+import {DEFAULT_SAVE,clearSession,loadSave,loadSession,saveData,saveSession,todayKey,type SaveData} from './storage';
 
 class MemoryStorage implements Storage{
  private values=new Map<string,string>();
