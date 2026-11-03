@@ -88,7 +88,15 @@ export function getAvailableMoves(board:Board,pieces:readonly Piece[]):Array<{pi
     if(canPlacePiece(board,piece.cells,x,y))moves.push({pieceId:piece.id,x,y});
   return moves;
 }
-export function hasAnyValidMove(board:Board,pieces:readonly Piece[]):boolean{return getAvailableMoves(board,pieces).length>0;}
+export function hasAnyValidMove(board:Board,pieces:readonly Piece[]):boolean{
+ for(const piece of pieces.filter(p=>!p.used)){
+  for(let turns=0;turns<4;turns++){
+   const orientation=rotatePiece(piece.cells,turns);
+   for(let y=0;y<SIZE;y++)for(let x=0;x<SIZE;x++)if(canPlacePiece(board,orientation,x,y))return true;
+  }
+ }
+ return false;
+}
 
 export function generatePieceSet(random:()=>number=Math.random,serial=0):Piece[]{
   const total=SHAPES.reduce((sum,shape)=>sum+shape.weight,0);
