@@ -29,4 +29,19 @@ describe('local save reliability',()=>{
   expect(loadSave(broken).version).toBe(1);expect(saveData(DEFAULT_SAVE,broken)).toBe(false);
  });
  it('formats local calendar dates consistently',()=>expect(todayKey(new Date(2026,10,4))).toBe('2026-11-04'));
+ it('saves and loads an active session with its own versioned key',()=>{
+  const storage=new MemoryStorage(),session={score:250,board:[[null,1]],mode:'classic'};
+  expect(saveSession(session,storage)).toBe(true);
+  expect(loadSession(storage)).toEqual(session);
+  expect(clearSession(storage)).toBe(true);
+  expect(loadSession(storage)).toBeNull();
+ });
+ it('discards corrupt or unsupported active sessions safely',()=>{
+  const storage=new MemoryStorage();
+  storage.setItem('block-bloom-session-v1','bad json');
+  expect(loadSession(storage)).toBeNull();
+  storage.setItem('block-bloom-session-v1',JSON.stringify({version:9,session:{score:3}}));
+  expect(loadSession(storage)).toBeNull();
+ });
+
 });
