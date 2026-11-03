@@ -13,7 +13,7 @@ let drag:{pieceId:string;startX:number;startY:number;pointerId:number;grabX:numb
 let pointerListenersReady=false;
 
 function createGame(mode:GameState['mode'],level:number):GameState{
- const seed=mode==='daily'?hashSeed('block-bloom:'+todayKey()):((Math.random()*0xffffffff)>>>0);
+ const seed=mode==='daily'?hashSeed('block-bloom:'+todayKey()):mode==='level'?hashSeed('block-bloom-level:'+level):((Math.random()*0xffffffff)>>>0);
  const game:GameState={board:createBoard(),tray:[],rngSeed:seed,score:0,combo:0,bloom:0,serial:0,selected:null,mode,level,moves:0,lines:0,multi:0,over:false,paused:false};
  game.tray=generatePieceSet(()=>nextRandom(game),0);
  return game;
@@ -43,6 +43,14 @@ function pieceMarkup(piece:Piece):string{
 function renderGame(){
  const level=state.mode==='level'?LEVELS[state.level-1]:null;
  root.innerHTML=`<main class="shell game-shell"><header class="game-head"><button class="icon-btn" data-action="back">←</button><div><div class="eyebrow">${state.mode==='classic'?'CLASSIC MODE':state.mode==='daily'?'DAILY BLOOM':`LEVEL ${state.level} / 30`}</div><div class="score-number" id="score">${state.score.toLocaleString()}</div><small>SCORE ${level?`· TARGET ${level.target}`:''}</small></div><button class="icon-btn" data-action="pause">Ⅱ</button></header><div class="meta-row"><div class="meta-pill">✦ <b>${state.combo}</b> COMBO</div><div class="meta-pill bloom-pill"><span>✿ BLOOM</span><div class="meter"><i id="bloom-meter" style="width:${state.bloom}%"></i></div><b>${state.bloom}%</b></div><button class="burst-btn" data-action="burst" ${state.bloom<100?'disabled':''}>✺ BURST</button></div><section class="board-wrap"><div class="board" id="board" aria-label="Eight by eight puzzle board">${state.board.flatMap((row,y)=>row.map((cell,x)=>`<div class="cell ${cell===null?'':'filled'}" data-x="${x}" data-y="${y}" ${cell===null?'':`style="--block:${PALETTE[cell]}"`}></div>`)).join('')}</div></section><div class="helper">${state.paused?'Game paused. Resume when ready.':level?level.hint:'Drag a shape onto the board. Tap a shape then tap the board to place it.'}</div><div class="tray" id="tray">${state.tray.map(p=>`<button class="piece-slot ${p.used?'used':''} ${state.selected===p.id?'selected':''}" data-piece="${p.id}" ${p.used?'disabled':''} aria-label="Select shape"><span class="mini-piece">${pieceMarkup(p)}</span><small>${p.cells.length}</small></button>`).join('')}</div><div class="game-actions">${button('↶ UNDO','undo','btn soft')}${button('💡 HINT','hint','btn soft')}${button('↻ RESTART','restart','btn soft')}</div><div id="toast" class="toast"></div></main>`;
+ if(state.paused){
+  const layer=document.createElement('div');layer.className='modal-backdrop pause-backdrop';
+  layer.innerHTML='<section class="modal pause-modal"><div class="modal-flower">Ⅱ</div><div class="eyebrow">TAKE A BREATH</div><h2>Garden paused</h2><p>Your board is safe. Take a moment, then come back for the next move.</p><button class="btn primary" data-pause="resume">RESUME GAME</button><button class="btn soft" data-pause="restart">RESTART ROUND</button><button class="btn soft" data-pause="home">GARDEN HOME</button></section>';
+  root.append(layer);
+  layer.querySelector('[data-pause="resume"]')?.addEventListener('click',()=>{state.paused=false;renderGame();});
+  layer.querySelector('[data-pause="restart"]')?.addEventListener('click',()=>{state=createGame(state.mode,state.level);history=[];burstMode=false;renderGame();});
+  layer.querySelector('[data-pause="home"]')?.addEventListener('click',()=>{state.paused=false;burstMode=false;nav('menu');});
+ }
  bindGameEvents();
 }
 function takeSnapshot(){history.push({...state,board:state.board.map(r=>[...r]),tray:state.tray.map(p=>({...p,cells:p.cells.map(c=>[...c] as Point)}))});if(history.length>25)history.shift();}
@@ -139,13 +147,17 @@ function commit(piece:Piece,x:number,y:number){
  if(result.lines){audio.play(result.lines>1?'combo':'clear');if(navigator.vibrate&&save.vibration)navigator.vibrate(result.lines>1?[20,30,30]:15);}else audio.play('place');
  if(state.tray.every(p=>p.used)){state.serial++;state.tray=generatePieceSet(()=>nextRandom(state),state.serial);}
  save.bestScore=Math.max(save.bestScore,state.mode==='classic'?state.score:0);save.totalScore+=result.score;save.linesCleared+=result.lines;save.highestCombo=Math.max(save.highestCombo,state.combo);
- if(state.mode==='daily'&&state.score>=500&&save.dailyDate!==todayKey()){save.dailyDate=todayKey();save.dailyStreak++;toast('Daily bloom complete! ✿');}
+ if(state.mode==='daily'&&state.score>=500&&save.dailyDate!==todayKey()){
+  const yesterday=new Date();yesterday.setDate(yesterday.getDate()-1);
+  save.dailyStreak=save.dailyDate===todayKey(yesterday)?save.dailyStreak+1:1;
+  save.dailyDate=todayKey();toast('Daily bloom complete! ✿');
+ }
  if(state.mode==='level'){
   const level=LEVELS[state.level-1],stats={score:state.score,lines:state.lines,combo:state.combo,multi:state.multi};
   if(isLevelComplete(level,stats)){const stars=starsForLevel(level,stats);save.levelStars[state.level]=Math.max(save.levelStars[state.level]||0,stars);save.levelUnlocked=Math.max(save.levelUnlocked,Math.min(30,state.level+1));state.over=true;}
   else if(state.moves>=level.moves)state.over=true;
  }
- if(!hasAnyValidMove(state.board,state.tray))state.over=true;
+ if(!hasAnyValidMove(state.board,state.tray)&&state.bloom<100)state.over=true;
  persist();renderGame();if(state.over)showEnd();
 }
 function canFitAt(piece:Piece,x:number,y:number):boolean{return piece.cells.every(([dx,dy])=>x+dx<SIZE&&y+dy<SIZE&&x+dx>=0&&y+dy>=0&&state.board[y+dy]?.[x+dx]===null);}
@@ -156,9 +168,12 @@ function activateBurstAt(x:number,y:number){
  if(!result.cleared){toast('Choose an area with blocks inside.');return;}
  takeSnapshot();state.board=result.board;
  const bonus=result.cleared*15;state.score+=bonus;state.bloom=0;state.combo=0;burstMode=false;state.moves++;
- save.totalScore+=bonus;save.bestScore=Math.max(save.bestScore,state.mode==='classic'?state.score:0);persist();audio.play('bloom');
+ save.totalScore+=bonus;save.bestScore=Math.max(save.bestScore,state.mode==='classic'?state.score:0);
+ if(state.mode==='level'&&state.moves>=LEVELS[state.level-1].moves)state.over=!isLevelComplete(LEVELS[state.level-1],{score:state.score,lines:state.lines,combo:state.combo,multi:state.multi});
+ if(!hasAnyValidMove(state.board,state.tray))state.over=true;
+ persist();audio.play('bloom');
  if(navigator.vibrate&&save.vibration)navigator.vibrate([25,35,50]);
- renderGame();toast('Bloom Burst! +'+bonus+' ✿');
+ renderGame();toast('Bloom Burst! +'+bonus+' ✿');if(state.over)showEnd();
 }
 function showEnd(){
  const won=state.mode==='level'&&save.levelStars[state.level]>0,daily=state.mode==='daily'&&save.dailyDate===todayKey();
