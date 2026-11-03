@@ -165,3 +165,9 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--mint);outline-o
 .burst-confirm-bar .btn:disabled{opacity:.35;filter:saturate(.4);cursor:not-allowed;transform:none}
 @keyframes burstbar-in{from{opacity:0;transform:translateY(7px)}to{opacity:1;transform:translateY(0)}}
 @media(max-width:365px){.burst-confirm-bar{grid-template-columns:1fr 1fr}.burst-confirm-bar span{grid-column:1/-1}.burst-confirm-bar .btn{min-height:36px}}
+
+.chapter-heading{grid-column:1/-1;display:flex;align-items:center;justify-content:space-between;gap:10px;margin:9px 2px 1px;padding:9px 3px 5px;border-bottom:1px solid rgba(218,235,255,.08)}
+.chapter-heading span{font-size:8px;font-weight:900;letter-spacing:1.8px;color:#79d9c1}
+.chapter-heading b{font:700 15px Outfit;color:#dce9f5;letter-spacing:.1px}
+.level-card em{font-style:normal;font-size:8px;font-weight:800;letter-spacing:.5px;color:#8399af}
+.level-card.locked em{color:#738092}
