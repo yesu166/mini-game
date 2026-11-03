@@ -17,7 +17,14 @@
 
 ## Verification status
 
-Source files have been committed to the feature branch. The connected GitHub integration supports repository file operations but does not provide a local Node terminal, browser or Android SDK. A successful `npm test` or `npm run build` is **not claimed** until a workflow run reports success.
+GitHub Actions run [41702555691](https://github.com/yesu166/mini-game/actions/runs/41702555691) completed successfully on the current implementation commit:
+
+- **23/23** Vitest engine, campaign and storage tests passed.
+- TypeScript strict check and Vite production build passed.
+- **8/8** Playwright Chromium browser flows passed, including real tap placement, drag placement, Undo/stat consistency, interrupted-round recovery, campaign navigation, settings/privacy and Bloom Burst preview/cancel/confirm.
+- Browser screenshots and traces were uploaded as the [CI evidence artifact](https://github.com/yesu166/mini-game/actions/runs/41702555691/artifacts/13264126225).
+
+This verifies the browser build in GitHub's Linux/Chromium environment. It does not substitute for Android device testing or store-release validation.
 
 ## Known limitations before a public release
 
@@ -32,8 +39,8 @@ Source files have been committed to the feature branch. The connected GitHub int
 
 ## Release checklist
 
-1. Confirm the GitHub Actions workflow succeeds.
-2. Run `npm install`, `npm test` and `npm run build` locally.
+1. Keep the GitHub Actions workflow green for each change.
+2. Run `npm install`, `npm test`, `npm run build` and `npm run test:e2e` locally.
 3. Exercise every game mode, all controls, invalid placements, rotation, undo, Bloom Burst and game-over sequences.
 4. Validate the 30 level definitions for reliable completion and reasonable difficulty.
 5. Test responsive layouts and accessibility on current mobile and desktop browsers.
