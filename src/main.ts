@@ -222,7 +222,7 @@ root.addEventListener('click',e=>{
  else if(action==='pause'){state.paused=!state.paused;renderGame();}
  else if(action==='undo'){const prev=history.pop();if(prev){state=prev;burstMode=false;renderGame();}else toast('No move to undo yet.');}
  else if(action==='rotate'){if(state.paused||state.over)return;const piece=state.tray.find(p=>p.id===state.selected&&!p.used);if(!piece){toast('Select a piece first.');return;}piece.cells=rotatePiece(piece.cells);renderGame();toast('Piece rotated.');}
- else if(action==='hint'){if(state.paused||state.over)return;const moves=getAvailableMoves(state.board,state.tray);if(!moves.length){toast('No open placements remain.');return;}const move=moves[0];state.selected=move.pieceId;document.querySelectorAll('.piece-slot').forEach(el=>el.classList.toggle('selected',(el as HTMLElement).dataset.piece===move.pieceId));toast(`Try column ${move.x+1}, row ${move.y+1}.`);}
+ else if(action==='hint'){if(state.paused||state.over)return;const moves=getAvailableMoves(state.board,state.tray);if(!moves.length){toast('No open placements remain.');return;}const move=moves[0],hintPiece=state.tray.find(p=>p.id===move.pieceId);if(hintPiece&&move.turns>0){hintPiece.cells=rotatePiece(hintPiece.cells,move.turns);renderGame();}state.selected=move.pieceId;document.querySelectorAll('.piece-slot').forEach(el=>el.classList.toggle('selected',(el as HTMLElement).dataset.piece===move.pieceId));toast(`Try column ${move.x+1}, row ${move.y+1}.`);}
  else if(action==='burst'){if(state.bloom<100){toast('Fill the Bloom meter first.');return;}burstMode=true;state.selected=null;toast('Tap the top-left cell of an open 3 × 3 area.');}
 });
 root.addEventListener('change',e=>{
