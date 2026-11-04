@@ -5,8 +5,8 @@ export type Point = [number, number];
 export interface Shape { id: string; cells: Point[]; weight: number }
 export interface Piece { id: string; shapeId: string; cells: Point[]; color: number; used: boolean }
 export interface ClearResult { rows: number[]; columns: number[]; cleared: number; board: Board }
-export interface PlacementResult { board: Board; cleared: number; rows: number[]; columns: number[]; lines: number; score: number; combo: number; bloom: number }
-export const PALETTE = ['#ff6b75','#ffc95c','#36d7ad','#5e9cff','#a486f5','#ff82c7','#ff995f'] as const;
+export interface PlacementResult { board: Board; cleared: number; rows: number[]; columns: number[]; lines: number; score: number; combo: number; bloom: number; clusters: Point[][]; clusterCells: number }
+export const PALETTE = ['#ff5277','#ffb52e','#20c98a','#319dff','#8662f5','#f04faf','#ff713d'] as const;
 
 const SHAPES: Shape[] = [
   {id:'dot',cells:[[0,0]],weight:4},
@@ -77,6 +77,29 @@ export function clearCompletedLines(board:Board):ClearResult{
   for(const key of clearedKeys){const [x,y]=key.split(',').map(Number);next[y][x]=null;}
   return {rows,columns,cleared:clearedKeys.size,board:next};
 }
+export function findColorClusters(board:Board,minimumSize=4):Point[][]{
+  if(!Array.isArray(board)||board.length!==SIZE||board.some(row=>!Array.isArray(row)||row.length!==SIZE))return [];
+  const visited=new Set<string>(),clusters:Point[][]=[];
+  for(let y=0;y<SIZE;y++)for(let x=0;x<SIZE;x++){
+    const color=board[y][x],startKey=x+','+y;
+    if(color===null||visited.has(startKey))continue;
+    const stack:Point[]=[[x,y]],cluster:Point[]=[];
+    visited.add(startKey);
+    while(stack.length){
+      const [cx,cy]=stack.pop()!;
+      cluster.push([cx,cy]);
+      for(const [nx,ny] of [[cx+1,cy],[cx-1,cy],[cx,cy+1],[cx,cy-1]] as Point[]){
+        if(nx<0||ny<0||nx>=SIZE||ny>=SIZE||board[ny][nx]!==color)continue;
+        const key=nx+','+ny;
+        if(visited.has(key))continue;
+        visited.add(key);stack.push([nx,ny]);
+      }
+    }
+    if(cluster.length>=minimumSize)clusters.push(cluster);
+  }
+  return clusters;
+}
+
 export function calculateScore(pieceCells:number,lineCount:number,combo:number):number{
   return pieceCells*10+(lineCount?lineCount*100+Math.max(0,lineCount-1)*75:0)+(lineCount?Math.max(0,combo-1)*50:0);
 }
@@ -118,9 +141,20 @@ export function clearRegion3x3(board:Board,x:number,y:number):{board:Board;clear
 
 export function applyPlacement(board:Board,piece:Piece,x:number,y:number,combo:number,bloom:number):PlacementResult{
   if(piece.used)throw new Error('Piece has already been used');
-  const placed=placePiece(board,piece.cells,x,y,piece.color),result=clearCompletedLines(placed),lines=result.rows.length+result.columns.length;
-  const nextCombo=calculateCombo(combo,lines),gain=lines*20;
-  return {board:result.board,cleared:result.cleared,rows:result.rows,columns:result.columns,lines,score:calculateScore(piece.cells.length,lines,nextCombo),combo:nextCombo,bloom:Math.min(100,bloom+gain)};
+  const placed=placePiece(board,piece.cells,x,y,piece.color);
+  const lineResult=clearCompletedLines(placed),clusters=findColorClusters(placed,4);
+  const nextBoard=cloneBoard(lineResult.board),clusterKeys=new Set<string>();
+  for(const cluster of clusters)for(const [cx,cy] of cluster){
+    const key=cx+','+cy;
+    if(nextBoard[cy][cx]!==null){clusterKeys.add(key);nextBoard[cy][cx]=null;}
+  }
+  const lines=lineResult.rows.length+lineResult.columns.length;
+  const nextCombo=calculateCombo(combo,lines);
+  const clusterCells=clusterKeys.size;
+  const clusterBonus=clusters.reduce((total,cluster)=>total+cluster.length*22+Math.max(0,cluster.length-4)*8,0);
+  const score=calculateScore(piece.cells.length,lines,nextCombo)+clusterBonus;
+  const gain=lines*20+clusterCells*6;
+  return {board:nextBoard,cleared:lineResult.cleared+clusterCells,rows:lineResult.rows,columns:lineResult.columns,lines,score,combo:nextCombo,bloom:Math.min(100,bloom+gain),clusters,clusterCells};
 }
 
 export function seededRandom(seed:number):()=>number{
