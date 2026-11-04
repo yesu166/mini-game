@@ -142,7 +142,12 @@ export function clearRegion3x3(board:Board,x:number,y:number):{board:Board;clear
 export function applyPlacement(board:Board,piece:Piece,x:number,y:number,combo:number,bloom:number):PlacementResult{
   if(piece.used)throw new Error('Piece has already been used');
   const placed=placePiece(board,piece.cells,x,y,piece.color);
-  const lineResult=clearCompletedLines(placed),clusters=findColorClusters(lineResult.board,4);
+  const lineResult=clearCompletedLines(placed);
+  const newCells=new Set(piece.cells.map(([dx,dy])=>(x+dx)+','+(y+dy)));
+  const clusters=findColorClusters(lineResult.board,4).filter(cluster=>
+    cluster.some(([cx,cy])=>newCells.has(cx+','+cy)) &&
+    cluster.some(([cx,cy])=>board[cy][cx]!==null&&board[cy][cx]===lineResult.board[cy][cx])
+  );
   const nextBoard=cloneBoard(lineResult.board),clusterKeys=new Set<string>();
   for(const cluster of clusters)for(const [cx,cy] of cluster){
     const key=cx+','+cy;

@@ -103,6 +103,16 @@ describe('BLOCK BLOOM deterministic puzzle engine',()=>{
   expect(result.score).toBe(98);
   expect(result.bloom).toBe(24);
  });
+ it('does not instantly clear a fresh piece just because its own shape has four connected cells',()=>{
+  const square:Piece={id:'fresh-square',shapeId:'four-square',cells:[[0,0],[1,0],[0,1],[1,1]],color:2,used:false};
+  const result=applyPlacement(createBoard(),square,2,2,0,0);
+  expect(result.clusters).toHaveLength(0);
+  expect(result.clusterCells).toBe(0);
+  expect(result.board[2][2]).toBe(2);
+  expect(result.board[2][3]).toBe(2);
+  expect(result.board[3][2]).toBe(2);
+  expect(result.board[3][3]).toBe(2);
+ });
  it('does not treat diagonal same-colour blocks as a match',()=>{
   const board=createBoard();
   board[0][0]=1;board[1][1]=1;board[2][2]=1;board[3][3]=1;
