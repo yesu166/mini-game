@@ -1,5 +1,5 @@
 import {describe,it,expect} from 'vitest';
-import {createBoard,cloneBoard,canPlacePiece,placePiece,findCompletedRows,findCompletedColumns,clearCompletedLines,rotatePiece,generatePieceSet,getAvailableMoves,hasAnyValidMove,applyPlacement,clearRegion3x3,hashSeed,seededRandom,SIZE,SHAPE_LIBRARY,type Piece} from './engine';
+import {createBoard,cloneBoard,canPlacePiece,placePiece,findCompletedRows,findCompletedColumns,clearCompletedLines,rotatePiece,generatePieceSet,getAvailableMoves,hasAnyValidMove,applyPlacement,clearRegion3x3,findColorClusters,hashSeed,seededRandom,SIZE,SHAPE_LIBRARY,type Piece} from './engine';
 
 describe('BLOCK BLOOM deterministic puzzle engine',()=>{
  it('creates an empty 8×8 board and clones without aliasing',()=>{
@@ -81,4 +81,31 @@ describe('BLOCK BLOOM deterministic puzzle engine',()=>{
   expect(hasAnyValidMove(board,[horizontal])).toBe(true);
  });
 
+ it('finds only orthogonally connected groups of four or more matching colours',()=>{
+  const board=createBoard();
+  board[1][1]=2;board[1][2]=2;board[2][1]=2;board[2][2]=2;
+  board[5][4]=3;board[6][5]=3;board[5][6]=3;board[6][7]=3;
+  expect(findColorClusters(board)).toHaveLength(1);
+  expect(findColorClusters(board)[0]).toHaveLength(4);
+  expect(findColorClusters(board,5)).toHaveLength(0);
+ });
+ it('clears a four-block colour bloom and rewards it with score and bloom charge',()=>{
+  const board=createBoard();
+  board[2][2]=4;board[2][3]=4;board[3][2]=4;
+  const dot:Piece={id:'match-dot',shapeId:'dot',cells:[[0,0]],color:4,used:false};
+  const result=applyPlacement(board,dot,3,3,0,0);
+  expect(result.clusters).toHaveLength(1);
+  expect(result.clusterCells).toBe(4);
+  expect(result.board[2][2]).toBeNull();
+  expect(result.board[2][3]).toBeNull();
+  expect(result.board[3][2]).toBeNull();
+  expect(result.board[3][3]).toBeNull();
+  expect(result.score).toBe(98);
+  expect(result.bloom).toBe(24);
+ });
+ it('does not treat diagonal same-colour blocks as a match',()=>{
+  const board=createBoard();
+  board[0][0]=1;board[1][1]=1;board[2][2]=1;board[3][3]=1;
+  expect(findColorClusters(board)).toHaveLength(0);
+ });
 });
