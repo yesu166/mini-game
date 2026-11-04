@@ -16,18 +16,20 @@ Pieces rotate clockwise. The move-search engine checks distinct rotations, so hi
 
 ## Clearing and score
 
-Full horizontal rows and vertical columns clear after a placement. Simultaneous line intersections are counted once. The current score formula is:
+Full horizontal rows and vertical columns clear after a placement. Simultaneous line intersections are counted once. In addition, four or more same-colour blocks connected edge-to-edge (not diagonally) form a Color Bloom cluster. All qualifying clusters are cleared on the same placement. Cluster cells receive a colour-match bonus, and cleared cluster cells add Bloom charge. When a cluster overlaps a line clear, its cells are removed only once from the board. The current line score formula is:
 
 - 10 points per placed cell.
 - 100 points per completed line.
 - 75 additional points for each extra line in the same placement.
 - 50 combo points for each consecutive line-clearing turn after the first.
+- 22 bonus points per Color Bloom cell, plus 8 extra points for each cluster cell beyond the fourth.
+- 6 Bloom charge per Color Bloom cell, in addition to 20 charge per cleared line.
 
 The combo resets on a placement that clears no line.
 
 ## Bloom Charge and Bloom Burst
 
-Each cleared line adds 20 charge, capped at 100. When full, the player can enter Burst targeting and choose a fully in-bounds 3 × 3 area. The candidate region is highlighted before commitment. The player must explicitly confirm or cancel. On confirmation, occupied cells in the region are removed and award 15 points each. The charge and combo reset. A ready Bloom Burst prevents game-over from triggering before the player can choose to spend it.
+Each cleared line adds 20 charge, capped at 100. Each additional cell removed by a Color Bloom cluster adds another 6 charge. When full, the player can enter Burst targeting and choose a fully in-bounds 3 × 3 area. The candidate region is highlighted before commitment. The player must explicitly confirm or cancel. On confirmation, occupied cells in the region are removed and award 15 points each. The charge and combo reset. A ready Bloom Burst prevents game-over from triggering before the player can choose to spend it.
 
 ## Modes
 
@@ -42,7 +44,7 @@ The daily challenge targets 500 points. Its piece stream is seeded from the user
 
 ## Controls and accessibility
 
-- Tap a piece, then tap an empty board position.
+- Tap a piece, then tap an empty board position. Connect 4+ same-colour blocks edge-to-edge for a Color Bloom, or complete a full row or column.
 - Drag a piece to the board for direct placement.
 - Select a piece and use ROTATE to rotate it clockwise.
 - HINT highlights a legal move and rotates the selected piece when needed.
