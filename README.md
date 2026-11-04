@@ -1,8 +1,8 @@
 # BLOCK BLOOM
 
-**A dimensional puzzle garden. Place with purpose. Clear with joy.**
+**A bright little block puzzle with colour-matching combos.**
 
-BLOCK BLOOM is a portrait-first block-placement puzzle built with TypeScript and Vite. Its visual direction uses a midnight arcade palette, beveled dimensional blocks, soft bloom lighting, subtle pointer-driven board tilt and tactile interaction feedback.
+BLOCK BLOOM is a portrait-first block puzzle built with TypeScript and Vite. Its sunny toy-box art direction uses warm paper-like backgrounds, punchy candy-coloured blocks, chunky tactile controls and playful feedback.
 
 > Current status: active development. The web game, engine, progression and browser interactions are implemented and passing CI. Android packaging, real-device testing, production advertising and store release are still outstanding.
 
@@ -34,7 +34,7 @@ GitHub Actions runs the engine, campaign and storage suite, a strict TypeScript/
 - Three-piece tray. The next tray appears only after all three pieces are used.
 - Tap-to-select and tap-to-place, or drag-and-drop with a grabbed-cell offset and valid/invalid placement preview.
 - Rotate a selected piece, request a hint, or undo a recent move. Move search and game-over detection account for rotations.
-- Complete rows and columns. Simultaneous line intersections are cleared and scored once.
+- Complete rows and columns, or connect four or more same-colour blocks orthogonally to trigger a Color Bloom. Colour clusters award bonus points and charge the Bloom meter.
 - Bloom Charge powers Bloom Burst: choose a 3 × 3 board region, inspect the highlighted preview, then confirm or cancel.
 - Classic endless play, a 30-level objective journey in three chapters, and a date-seeded daily challenge.
 - Local save records and validated active-round recovery with a Continue Round entry point, plus sound effects, optional ambient synth music and vibration where supported.
